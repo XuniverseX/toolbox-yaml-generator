@@ -9,7 +9,7 @@
 <body>
   <header>
     <h1>数据库 YAML 配置生成器</h1>
-    <p>支持 MySQL、SQLite 的 genai-toolbox YAML 配置可视化生成。支持导入、编辑、预览、复制与下载。</p>
+    <p>支持 MySQL、SQLite、MongoDB 的 genai-toolbox YAML 配置可视化生成。支持导入、编辑、预览、复制与下载。</p>
   </header>
   <main>
     <section id="type-select">
@@ -17,6 +17,7 @@
       <select id="db-type-select">
         <option value="mysql">MySQL</option>
         <option value="sqlite">SQLite</option>
+        <option value="mongodb">MongoDB</option>
       </select>
     </section>
     <section id="source-config-mysql">
@@ -36,6 +37,17 @@
         <label>数据库文件路径 (database)<input type="text" name="database" required placeholder="如 /data/test.db"></label>
       </form>
     </section>
+    <section id="source-config-mongodb" style="display:none">
+      <h2>MongoDB 源配置</h2>
+      <form id="mongodb-source-form" autocomplete="off">
+        <label>主机 (host)<input type="text" name="host" required placeholder="如 127.0.0.1"></label>
+        <label>端口 (port)<input type="number" name="port" required min="1" max="65535" placeholder="如 27017"></label>
+        <label>数据库名 (database)<input type="text" name="database" required placeholder="如 testdb"></label>
+        <label>用户名 (user)<input type="text" name="user" required placeholder="如 root"></label>
+        <label>密码 (password)<input type="password" name="password" required placeholder="数据库密码"></label>
+        <label>参数 (options，可选)<input type="text" name="options" placeholder="如 ?authSource=admin"></label>
+      </form>
+    </section>
     <section id="builtin-tools">
       <h2>内置工具</h2>
       <div id="builtin-mysql">
@@ -46,7 +58,16 @@
         </div>
       </div>
       <div id="builtin-sqlite" style="display:none">
-        <small>SQLite 无内置工具，所有 SQL 工具请在下方自定义添加。</small>
+        <label><input type="checkbox" id="tool-sqlite-execute" checked> sqlite_execute（通用 SQL 执行工具）</label>
+        <div class="tool-desc" id="desc-sqlite-execute">
+          <small>sqlite_execute 工具可执行任意 SQLite SQL 语句，参数支持 SQL 绑定变量。</small>
+        </div>
+      </div>
+      <div id="builtin-mongodb" style="display:none">
+        <label><input type="checkbox" id="tool-mongo-execute" checked> mongo_execute（MongoDB 通用操作工具）</label>
+        <div class="tool-desc" id="desc-mongo-execute">
+          <small>mongo_execute 工具可执行任意 MongoDB 操作（find、aggregate、insert、update、delete 等），参数需指定 collection 及操作类型。</small>
+        </div>
       </div>
     </section>
     <section id="custom-tools">

@@ -1,4 +1,4 @@
-// 表单校验与用户提示，支持多数据源类型
+// 表单校验与用户提示，支持多数据源类型（含 MongoDB）
 function validateConfig() {
   const state = window.yamlConfigState;
   if (state.type === 'mysql') {
@@ -28,6 +28,18 @@ function validateConfig() {
       if (names.has(t.name)) return '工具名重复: ' + t.name;
       names.add(t.name);
       if (!t.statement) return `自定义工具 ${t.name} 的 SQL 不能为空`;
+    }
+    return '';
+  } else if (state.type === 'mongodb') {
+    const s = state.mongoSource;
+    if (!s.uri || !s.database) return 'MongoDB 源的 URI 和数据库名为必填';
+    // 工具名唯一
+    const names = new Set(['mongo_execute']);
+    for (const t of state.customTools) {
+      if (!t.name) return '自定义工具名不能为空';
+      if (names.has(t.name)) return '工具名重复: ' + t.name;
+      names.add(t.name);
+      if (!t.statement) return `自定义工具 ${t.name} 的操作/表达式不能为空`;
     }
     return '';
   }

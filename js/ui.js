@@ -1,24 +1,37 @@
-// UI 渲染与事件绑定，支持多数据源类型
+// UI 渲染与事件绑定，支持多数据源类型（含 SQLite execute 工具）
 document.addEventListener('DOMContentLoaded', function () {
   // 数据源类型切换
   const typeSelect = document.getElementById('db-type-select');
   const mysqlSection = document.getElementById('source-config-mysql');
   const sqliteSection = document.getElementById('source-config-sqlite');
+  const mongoSection = document.getElementById('source-config-mongodb');
   const builtinMysql = document.getElementById('builtin-mysql');
   const builtinSqlite = document.getElementById('builtin-sqlite');
+  const builtinMongo = document.getElementById('builtin-mongodb');
   typeSelect.value = window.yamlConfigState.type;
   function switchType(type) {
     window.yamlConfigState.type = type;
     if (type === 'mysql') {
       mysqlSection.style.display = '';
       sqliteSection.style.display = 'none';
+      mongoSection.style.display = 'none';
       builtinMysql.style.display = '';
       builtinSqlite.style.display = 'none';
-    } else {
+      builtinMongo.style.display = 'none';
+    } else if (type === 'sqlite') {
       mysqlSection.style.display = 'none';
       sqliteSection.style.display = '';
+      mongoSection.style.display = 'none';
       builtinMysql.style.display = 'none';
       builtinSqlite.style.display = '';
+      builtinMongo.style.display = 'none';
+    } else if (type === 'mongodb') {
+      mysqlSection.style.display = 'none';
+      sqliteSection.style.display = 'none';
+      mongoSection.style.display = '';
+      builtinMysql.style.display = 'none';
+      builtinSqlite.style.display = 'none';
+      builtinMongo.style.display = '';
     }
     renderCustomTools();
   }
@@ -39,10 +52,23 @@ document.addEventListener('DOMContentLoaded', function () {
   sqliteForm.elements['database'].addEventListener('input', e => {
     window.yamlConfigState.sqliteSource.database = e.target.value;
   });
+  // MongoDB 源配置表单（前端拼接 URI）
+  const mongoForm = document.getElementById('mongodb-source-form');
+  for (const key of ['host', 'port', 'database', 'user', 'password', 'options']) {
+    mongoForm.elements[key].addEventListener('input', e => {
+      window.yamlConfigState.mongoSource[key] = e.target.value;
+    });
+  }
 
   // 内置工具
   document.getElementById('tool-list-tables').addEventListener('change', e => {
     window.yamlConfigState.builtin.list_tables = e.target.checked;
+  });
+  document.getElementById('tool-sqlite-execute').addEventListener('change', e => {
+    window.yamlConfigState.builtin.sqlite_execute = e.target.checked;
+  });
+  document.getElementById('tool-mongo-execute').addEventListener('change', e => {
+    window.yamlConfigState.builtin.mongo_execute = e.target.checked;
   });
 
   // 自定义工具
@@ -56,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function () {
       block.innerHTML = `
         <label>工具名 <input type="text" value="${tool.name}" data-idx="${idx}" data-field="name" required></label>
         <label>描述 <input type="text" value="${tool.description}" data-idx="${idx}" data-field="description"></label>
-        <label>SQL <input type="text" value="${tool.statement}" data-idx="${idx}" data-field="statement" required></label>
+        <label>SQL/操作 <input type="text" value="${tool.statement}" data-idx="${idx}" data-field="statement" required></label>
         <label>参数（可选，逗号分隔）<input type="text" value="${(tool.parameters||[]).map(p=>p.name).join(',')}" data-idx="${idx}" data-field="parameters"></label>
         <button type="button" data-idx="${idx}" class="remove-tool">删除</button>
       `;

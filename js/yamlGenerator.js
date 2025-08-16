@@ -1,4 +1,4 @@
-// YAML 生成器：支持 mysql/sqlite
+// YAML 生成器：支持 mysql/sqlite/mongodb，SQLite 内置 execute 工具
 function buildYamlConfig() {
   const state = window.yamlConfigState;
   if (state.type === 'mysql') {
@@ -79,6 +79,21 @@ function buildYamlConfig() {
     };
     // tools
     const tools = {};
+    if (state.builtin.sqlite_execute) {
+      tools['sqlite_execute'] = {
+        kind: 'sqlite-sql',
+        source: 'sqlite-source',
+        description: '通用 SQLite SQL 执行工具，可执行任意 SQL 语句。',
+        statement: 'SELECT 1;',
+        parameters: [
+          {
+            name: "sql",
+            type: "string",
+            description: "要执行的 SQL 语句"
+          }
+        ]
+      };
+    }
     for (const tool of state.customTools) {
       if (!tool.name || !tool.statement) continue;
       tools[tool.name] = {
@@ -100,6 +115,75 @@ function buildYamlConfig() {
     };
     return {
       sources: { 'sqlite-source': source },
+      tools,
+      toolsets
+    };
+  } else if (state.type === 'mongodb') {
+    // MongoDB 源配置（前端拼接 URI）
+    const s = state.mongoSource;
+    let uri = 'mongodb://';
+    if (s.user && s.password) {
+      uri += encodeURIComponent(s.user) + ':' + encodeURIComponent(s.password) + '@';
+    }
+    uri += s.host || 'localhost';
+    if (s.port) uri += ':' + s.port;
+    if (s.options && s.options.trim()) {
+      uri += '/' + (s.database || '') + (s.options.startsWith('?') ? s.options : '?' + s.options);
+    } else if (s.database) {
+      uri += '/' + s.database;
+    }
+    // tools
+    const tools = {};
+    if (state.builtin.mongo_execute) {
+      tools['mongo_execute'] = {
+        kind: 'mongodb-execute',
+        source: 'mongodb-source',
+        description: 'Use this tool to execute MongoDB operations (find, aggregate, insert, update, delete, etc).',
+        parameters: [
+          {
+            name: "collection",
+            type: "string",
+            description: "集合名"
+          },
+          {
+            name: "operation",
+            type: "string",
+            description: "操作类型，如 find、aggregate、insert、update、delete"
+          },
+          {
+            name: "query",
+            type: "object",
+            description: "操作参数（如 filter、document、pipeline 等）"
+          }
+        ]
+      };
+    }
+    // 自定义工具
+    for (const tool of state.customTools) {
+      if (!tool.name || !tool.statement) continue;
+      tools[tool.name] = {
+        kind: 'mongodb-execute',
+        source: 'mongodb-source',
+        description: tool.description || '',
+        statement: tool.statement,
+        parameters: (tool.parameters || []).map(p => ({
+          name: p.name,
+          type: p.type || 'string',
+          description: p.description || '',
+          default: p.default || ''
+        }))
+      };
+    }
+    // toolsets
+    const toolsets = {
+      'mongodb-database-tools': Object.keys(tools)
+    };
+    return {
+      sources: { 'mongodb-source': {
+        kind: 'mongodb',
+        uri,
+        database: s.database
+      }},
       tools,
       toolsets
     };
