@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>数据库 YAML 配置生成器</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <h1>数据库 YAML 配置生成器</h1>
+    <p>支持 MySQL、SQLite 的 genai-toolbox YAML 配置可视化生成。支持导入、编辑、预览、复制与下载。</p>
+  </header>
+  <main>
+    <section id="type-select">
+      <h2>数据源类型</h2>
+      <select id="db-type-select">
+        <option value="mysql">MySQL</option>
+        <option value="sqlite">SQLite</option>
+      </select>
+    </section>
+    <section id="source-config-mysql">
+      <h2>MySQL 源配置</h2>
+      <form id="mysql-source-form" autocomplete="off">
+        <label>主机 (host)<input type="text" name="host" required placeholder="如 127.0.0.1"></label>
+        <label>端口 (port)<input type="number" name="port" required min="1" max="65535" placeholder="如 3306"></label>
+        <label>数据库名 (database)<input type="text" name="database" required placeholder="如 testdb"></label>
+        <label>用户名 (user)<input type="text" name="user" required placeholder="如 root"></label>
+        <label>密码 (password)<input type="password" name="password" required placeholder="数据库密码"></label>
+        <label>超时 (queryTimeout，可选)<input type="text" name="queryTimeout" placeholder="如 30s，留空为默认"></label>
+      </form>
+    </section>
+    <section id="source-config-sqlite" style="display:none">
+      <h2>SQLite 源配置</h2>
+      <form id="sqlite-source-form" autocomplete="off">
+        <label>数据库文件路径 (database)<input type="text" name="database" required placeholder="如 /data/test.db"></label>
+      </form>
+    </section>
+    <section id="builtin-tools">
+      <h2>内置工具</h2>
+      <div id="builtin-mysql">
+        <label><input type="checkbox" id="tool-execute-sql" checked disabled> execute_sql（固定，SQL 执行）</label>
+        <label><input type="checkbox" id="tool-list-tables" checked> list_tables（表结构/元数据查询）</label>
+        <div class="tool-desc" id="desc-list-tables">
+          <small>list_tables 工具可查询所有表的结构、约束、索引、触发器等详细信息。</small>
+        </div>
+      </div>
+      <div id="builtin-sqlite" style="display:none">
+        <small>SQLite 无内置工具，所有 SQL 工具请在下方自定义添加。</small>
+      </div>
+    </section>
+    <section id="custom-tools">
+      <h2>自定义工具</h2>
+      <div id="custom-tools-list"></div>
+      <button type="button" id="add-custom-tool">添加自定义工具</button>
+    </section>
+    <section id="yaml-actions">
+      <h2>YAML 操作</h2>
+      <button type="button" id="generate-yaml">生成 YAML</button>
+      <button type="button" id="import-yaml">导入 YAML</button>
+      <input type="file" id="yaml-file-input" accept=".yaml,.yml" style="display:none">
+      <button type="button" id="copy-yaml" disabled>复制 YAML</button>
+      <button type="button" id="download-yaml" disabled>下载 YAML</button>
+    </section>
+    <section id="yaml-preview">
+      <h2>YAML 预览</h2>
+      <pre id="yaml-output" class="yaml-block"></pre>
+    </section>
+    <section id="messages">
+      <div id="msg-area"></div>
+    </section>
+  </main>
+  <footer>
+    <small>本工具离线可用，所有数据仅在本地浏览器处理。源码与依赖遵循各自开源协议。</small>
+  </footer>
+  <script src="libs/js-yaml.min.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/yamlGenerator.js"></script>
+  <script src="js/yamlImporter.js"></script>
+  <script src="js/validation.js"></script>
+  <script src="js/download.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
