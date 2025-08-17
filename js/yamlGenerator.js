@@ -1,33 +1,61 @@
-// YAML 生成器：支持 mysql/sqlite/mongodb，SQLite 内置 execute 工具
+// 多数据源+多工具 YAML 生成器
 function buildYamlConfig() {
   const state = window.yamlConfigState;
-  if (state.type === 'mysql') {
-    // 源配置
-    const source = {
-      kind: 'mysql',
-      host: state.source.host,
-      port: Number(state.source.port),
-      database: state.source.database,
-      user: state.source.user,
-      password: state.source.password
-    };
-    if (state.source.queryTimeout && state.source.queryTimeout.trim()) {
-      source.queryTimeout = state.source.queryTimeout.trim();
-    }
-    // tools
-    const tools = {};
-    if (state.builtin.execute_sql) {
-      tools['execute_sql'] = {
-        kind: 'mysql-execute-sql',
-        source: 'mysql-source',
-        description: 'Use this tool to execute SQL.'
+  // sources
+  const sources = {};
+  for (const src of state.sources) {
+    if (src.type === 'mysql') {
+      sources[src.name] = {
+        kind: 'mysql',
+        host: src.config.host,
+        port: Number(src.config.port),
+        database: src.config.database,
+        user: src.config.user,
+        password: src.config.password,
+        ...(src.config.queryTimeout && src.config.queryTimeout.trim() ? {queryTimeout: src.config.queryTimeout.trim()} : {})
       };
     }
-    if (state.builtin.list_tables) {
-      tools['list_tables'] = {
+    if (src.type === 'sqlite') {
+      sources[src.name] = {
+        kind: 'sqlite',
+        database: src.config.database
+      };
+    }
+    if (src.type === 'mongodb') {
+      let uri = 'mongodb://';
+      if (src.config.user && src.config.password) {
+        uri += encodeURIComponent(src.config.user) + ':' + encodeURIComponent(src.config.password) + '@';
+      }
+      uri += src.config.host || 'localhost';
+      if (src.config.port) uri += ':' + src.config.port;
+      if (src.config.options && src.config.options.trim()) {
+        uri += '/' + (src.config.database || '') + (src.config.options.startsWith('?') ? src.config.options : '?' + src.config.options);
+      } else if (src.config.database) {
+        uri += '/' + src.config.database;
+      }
+      sources[src.name] = {
+        kind: 'mongodb',
+        uri,
+        database: src.config.database
+      };
+    }
+  }
+  // tools
+  const tools = {};
+  for (const tool of state.builtinTools) {
+    if (!tool.enabled) continue;
+    if (tool.type === 'mysql' && tool.name.startsWith('execute_sql')) {
+      tools[tool.name] = {
+        kind: 'mysql-execute-sql',
+        source: tool.source,
+        description: 'MySQL 通用 SQL 执行'
+      };
+    }
+    if (tool.type === 'mysql' && tool.name.startsWith('list_tables')) {
+      tools[tool.name] = {
         kind: 'mysql-sql',
-        source: 'mysql-source',
-        description: "Lists detailed schema information (object type, columns, constraints, indexes, triggers, comment) as JSON for user-created tables (ordinary or partitioned). Filters by a comma-separated list of names. If names are omitted, lists all tables in user schemas.",
+        source: tool.source,
+        description: "MySQL 表结构/元数据查询",
         statement: getListTablesSQL(),
         parameters: [
           {
@@ -45,45 +73,11 @@ function buildYamlConfig() {
         ]
       };
     }
-    // 自定义工具
-    for (const tool of state.customTools) {
-      if (!tool.name || !tool.statement) continue;
+    if (tool.type === 'sqlite') {
       tools[tool.name] = {
-        kind: 'mysql-sql',
-        source: 'mysql-source',
-        description: tool.description || '',
-        statement: tool.statement,
-        parameters: (tool.parameters || []).map(p => ({
-          name: p.name,
-          type: p.type || 'string',
-          description: p.description || '',
-          default: p.default || ''
-        }))
-      };
-    }
-    // toolsets
-    const toolsets = {
-      'mysql-database-tools': Object.keys(tools)
-    };
-    // 总体结构
-    return {
-      sources: { 'mysql-source': source },
-      tools,
-      toolsets
-    };
-  } else if (state.type === 'sqlite') {
-    // SQLite 源配置
-    const source = {
-      kind: 'sqlite',
-      database: state.sqliteSource.database
-    };
-    // tools
-    const tools = {};
-    if (state.builtin.sqlite_execute) {
-      tools['sqlite_execute'] = {
         kind: 'sqlite-sql',
-        source: 'sqlite-source',
-        description: '通用 SQLite SQL 执行工具，可执行任意 SQL 语句。',
+        source: tool.source,
+        description: 'SQLite 通用 SQL 执行',
         statement: 'SELECT 1;',
         parameters: [
           {
@@ -94,51 +88,11 @@ function buildYamlConfig() {
         ]
       };
     }
-    for (const tool of state.customTools) {
-      if (!tool.name || !tool.statement) continue;
+    if (tool.type === 'mongodb') {
       tools[tool.name] = {
-        kind: 'sqlite-sql',
-        source: 'sqlite-source',
-        description: tool.description || '',
-        statement: tool.statement,
-        parameters: (tool.parameters || []).map(p => ({
-          name: p.name,
-          type: p.type || 'string',
-          description: p.description || '',
-          default: p.default || ''
-        }))
-      };
-    }
-    // toolsets
-    const toolsets = {
-      'sqlite-database-tools': Object.keys(tools)
-    };
-    return {
-      sources: { 'sqlite-source': source },
-      tools,
-      toolsets
-    };
-  } else if (state.type === 'mongodb') {
-    // MongoDB 源配置（前端拼接 URI）
-    const s = state.mongoSource;
-    let uri = 'mongodb://';
-    if (s.user && s.password) {
-      uri += encodeURIComponent(s.user) + ':' + encodeURIComponent(s.password) + '@';
-    }
-    uri += s.host || 'localhost';
-    if (s.port) uri += ':' + s.port;
-    if (s.options && s.options.trim()) {
-      uri += '/' + (s.database || '') + (s.options.startsWith('?') ? s.options : '?' + s.options);
-    } else if (s.database) {
-      uri += '/' + s.database;
-    }
-    // tools
-    const tools = {};
-    if (state.builtin.mongo_execute) {
-      tools['mongo_execute'] = {
         kind: 'mongodb-execute',
-        source: 'mongodb-source',
-        description: 'Use this tool to execute MongoDB operations (find, aggregate, insert, update, delete, etc).',
+        source: tool.source,
+        description: 'MongoDB 通用操作',
         parameters: [
           {
             name: "collection",
@@ -158,37 +112,27 @@ function buildYamlConfig() {
         ]
       };
     }
-    // 自定义工具
-    for (const tool of state.customTools) {
-      if (!tool.name || !tool.statement) continue;
-      tools[tool.name] = {
-        kind: 'mongodb-execute',
-        source: 'mongodb-source',
-        description: tool.description || '',
-        statement: tool.statement,
-        parameters: (tool.parameters || []).map(p => ({
-          name: p.name,
-          type: p.type || 'string',
-          description: p.description || '',
-          default: p.default || ''
-        }))
-      };
-    }
-    // toolsets
-    const toolsets = {
-      'mongodb-database-tools': Object.keys(tools)
-    };
-    return {
-      sources: { 'mongodb-source': {
-        kind: 'mongodb',
-        uri,
-        database: s.database
-      }},
-      tools,
-      toolsets
+  }
+  for (const tool of state.customTools) {
+    if (!tool.name || !tool.statement || !tool.source) continue;
+    tools[tool.name] = {
+      kind: tool.kind,
+      source: tool.source,
+      description: tool.description || '',
+      statement: tool.statement,
+      parameters: (tool.parameters || []).map(p => ({
+        name: p.name,
+        type: p.type || 'string',
+        description: p.description || '',
+        default: p.default || ''
+      }))
     };
   }
-  return {};
+  // toolsets
+  const toolsets = {
+    'all-database-tools': Object.keys(tools)
+  };
+  return { sources, tools, toolsets };
 }
 
 // list_tables SQL（仅 MySQL 用）
