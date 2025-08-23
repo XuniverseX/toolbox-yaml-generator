@@ -25,6 +25,13 @@ function importYamlToState(obj) {
       window.yamlConfigState.builtinTools.push({ name: 'pg_list_tables_' + name, type, source: name, enabled: false });
     }
   }
+  // 根据 YAML tools 恢复内置工具启用状态（将存在于 YAML 的内置工具名标记为启用）
+  {
+    const yamlToolNames = new Set(Object.keys(obj.tools || {}));
+    window.yamlConfigState.builtinTools.forEach(bt => {
+      if (yamlToolNames.has(bt.name)) bt.enabled = true;
+    });
+  }
   // 解析 tools
   window.yamlConfigState.customTools = [];
   for (const [name, tool] of Object.entries(obj.tools || {})) {

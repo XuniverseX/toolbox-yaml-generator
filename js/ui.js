@@ -18,8 +18,9 @@ document.addEventListener('DOMContentLoaded', function () {
     sourcesList.querySelectorAll('.remove-source').forEach(btn => {
       btn.addEventListener('click', e => {
         const idx = +e.target.dataset.idx;
+        const removedName = window.yamlConfigState.sources[idx]?.name;
         window.yamlConfigState.sources.splice(idx, 1);
-        window.yamlConfigState.builtinTools = window.yamlConfigState.builtinTools.filter(t => t.source !== (window.yamlConfigState.sources[idx]?.name));
+        window.yamlConfigState.builtinTools = window.yamlConfigState.builtinTools.filter(t => t.source !== removedName);
         renderSources();
         renderBuiltinTools();
         renderCustomTools();
@@ -237,4 +238,9 @@ document.addEventListener('DOMContentLoaded', function () {
     renderCustomTools();
   });
   renderCustomTools();
+
+  // 暴露渲染函数到 window，供导入模块调用
+  window.renderSources = renderSources;
+  window.renderBuiltinTools = renderBuiltinTools;
+  window.renderCustomTools = renderCustomTools;
 });
