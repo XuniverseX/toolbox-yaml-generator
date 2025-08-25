@@ -1,0 +1,156 @@
+/* pico-overrides.css
+   Project-specific tokens and gentle overrides layered after pico.min.css and existing styles.
+   Goal: keep primary brand color, refine spacing/density, improve focus-visible and headings. */
+
+/* 1) Token overrides */
+:root {
+  /* Brand and semantic colors */
+  --pico-primary: #1976d2;
+  --pico-primary-600: #1565c0;
+  --pico-primary-700: #0d47a1;
+
+  --pico-success: #2e7d32;
+  --pico-warning: #ef6c00;
+  --pico-danger: #d32f2f;
+  --pico-info: #0288d1;
+
+  /* Radii and shadows a bit softer */
+  --pico-radius-sm: 6px;
+  --pico-radius-md: 10px;
+  --pico-radius-lg: 14px;
+
+  --pico-shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --pico-shadow-md: 0 2px 12px rgba(0,0,0,0.10);
+  --pico-shadow-lg: 0 10px 30px rgba(0,0,0,0.16);
+
+  /* Slightly tighter base spacing for denser forms */
+  --pico-spacing-1: 0.25rem;
+  --pico-spacing-2: 0.5rem;
+  --pico-spacing-3: 0.75rem;
+  --pico-spacing-4: 1rem;
+  --pico-spacing-5: 1.25rem;
+  --pico-spacing-6: 1.75rem;
+}
+
+/* 2) Page chrome refinements */
+header.page-header {
+  padding: calc(var(--pico-spacing-5) + 4px) 0;
+  background: #fff;
+  border-bottom: 1px solid var(--pico-border);
+}
+header.page-header h1 {
+  color: var(--pico-primary);
+  margin-bottom: 0.35rem;
+}
+header.page-header p {
+  margin: 0;
+  color: #4b5563;
+}
+
+main.page-main {
+  padding: var(--pico-spacing-6) 0;
+}
+
+/* 3) Typography tweaks */
+h1 { font-size: 1.9rem; }
+h2 { font-size: 1.35rem; color: var(--pico-primary); }
+h3 { font-size: 1.15rem; }
+
+p, li { color: #222; }
+small, .text-muted { color: #6b7280; }
+
+/* 4) Buttons: slightly firmer radius and hover */
+button,
+.button,
+[type=button],
+[type=submit],
+[type=reset] {
+  border-radius: 8px;
+}
+button:hover,
+.button:hover,
+[type=button]:hover,
+[type=submit]:hover,
+[type=reset]:hover {
+  filter: saturate(105%);
+}
+
+/* 5) Focus visible: accessible ring */
+:where(button, [type=button], [type=submit], [type=reset], a, input, select, textarea):focus-visible {
+  outline: 3px solid rgba(25,118,210,0.28);
+  outline-offset: 2px;
+}
+
+/* 6) Inputs density and width */
+label { margin-bottom: 0.6rem; }
+input[type=text],
+input[type=number],
+input[type=password],
+input[type=file],
+select,
+textarea {
+  padding: 0.55rem 0.7rem;
+  max-width: 620px;
+}
+
+/* 7) Utility layout helpers that will be used by components */
+.container-wide { max-width: 1180px; margin: 0 auto; padding: 0 var(--pico-spacing-4); }
+.container-narrow { max-width: 860px; margin: 0 auto; padding: 0 var(--pico-spacing-4); }
+
+.grid-2 {
+  display: grid;
+  gap: var(--pico-spacing-5);
+}
+@media (min-width: 980px) {
+  .grid-2 {
+    grid-template-columns: 1.4fr 1fr;
+    align-items: start;
+  }
+}
+
+/* 8) Section spacing normalization */
+.section {
+  margin-bottom: var(--pico-spacing-6);
+}
+
+/* 9) Links and subtle muted buttons */
+a.button-ghost {
+  background: transparent;
+  color: var(--pico-primary);
+  border: 1px solid var(--pico-border);
+  text-decoration: none;
+}
+
+/* 10) Prevent overly dark hover on disabled buttons */
+button:disabled { filter: none; }
+
+/* 11) Help text and captions */
+.caption {
+  color: #6b7280;
+  font-size: 0.92rem;
+}
+
+/* 12) Smooth transitions for surfaces (cards/toolbars to be defined in components.css) */
+.surface,
+.toolbar {
+  transition: box-shadow .2s ease, transform .12s ease;
+}
+.surface:hover {
+  box-shadow: var(--pico-shadow-md);
+}
+
+/* 13) Form field label alignment baseline (pairs well with upcoming form-grid) */
+.form-label {
+  display: inline-block;
+  min-width: 6.5rem;
+  color: #475569;
+}
+
+/* 14) Compact list spacing for tool lists */
+.list-compact > * + * { margin-top: 0.5rem; }
+
+/* 15) Minor scrollbar tone alignment with brand */
+:root {
+  --scrollbar-bg: #f0f2f5;
+  --scrollbar-thumb: #c7cfdb;
+}

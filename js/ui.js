@@ -9,9 +9,14 @@ document.addEventListener('DOMContentLoaded', function () {
       const block = document.createElement('div');
       block.className = 'source-block';
       block.innerHTML = `
-        <b>${src.name}</b> [${src.type}]
-        <button type="button" data-idx="${idx}" class="remove-source">删除</button>
-        <div class="source-fields">${renderSourceFields(src, idx)}</div>
+        <div class="flex row" style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+          <b>${src.name}</b>
+          <span class="badge">${src.type}</span>
+          <button type="button" data-idx="${idx}" class="remove-source button-ghost">
+            <svg class="icon" aria-hidden="true"><use href="#ico-delete"/></svg> 删除
+          </button>
+        </div>
+        <div class="source-fields" style="margin-top:.6rem;">${renderSourceFields(src, idx)}</div>
       `;
       sourcesList.appendChild(block);
     });
@@ -77,42 +82,51 @@ document.addEventListener('DOMContentLoaded', function () {
     return '';
   }
   addSourceBtn.addEventListener('click', () => {
-    // 弹窗：单选下拉选择类型+名称输入
-    const modal = document.createElement('div');
-    modal.style.position = 'fixed';
-    modal.style.left = '0'; modal.style.top = '0'; modal.style.right = '0'; modal.style.bottom = '0';
-    modal.style.background = 'rgba(0,0,0,0.25)';
-    modal.style.zIndex = '9999';
-    modal.innerHTML = `
-      <div style="background:#fff;padding:2em 2em 1em 2em;max-width:340px;margin:8% auto;border-radius:8px;box-shadow:0 2px 12px #0002;">
-        <h3>添加数据源</h3>
-        <form id="add-source-form">
-          <div>
-            <label>类型
-              <select name="type" required>
-                <option value="">请选择</option>
-                <option value="mysql">MySQL</option>
-                <option value="sqlite">SQLite</option>
-                <option value="mongodb">MongoDB</option>
-              </select>
-            </label>
-          </div>
-          <div style="margin-top:1em;">
-            <label>数据源名称 <input type="text" name="name" required placeholder="如 mydb1"></label>
-          </div>
-          <div style="margin-top:1.5em;text-align:right;">
-            <button type="submit">添加</button>
-            <button type="button" id="cancel-add-source">取消</button>
-          </div>
-        </form>
-      </div>
+    // 使用原生 dialog 作为模态对话框
+    const dlg = document.createElement('dialog');
+    dlg.innerHTML = `
+      <form id="add-source-form" method="dialog" style="min-width:300px">
+        <h3 class="m-0 mb-3">添加数据源</h3>
+        <div>
+          <label>类型
+            <select name="type" required>
+              <option value="">请选择</option>
+              <option value="mysql">MySQL</option>
+              <option value="sqlite">SQLite</option>
+              <option value="mongodb">MongoDB</option>
+            </select>
+          </label>
+        </div>
+        <div class="mt-2">
+          <label>数据源名称 <input type="text" name="name" required placeholder="如 mydb1"></label>
+        </div>
+        <div class="mt-3" style="text-align:right;">
+          <button type="submit">添加</button>
+          <button type="button" id="cancel-add-source" class="button-ghost">取消</button>
+        </div>
+      </form>
     `;
-    document.body.appendChild(modal);
-    modal.querySelector('#cancel-add-source').onclick = () => document.body.removeChild(modal);
-    modal.querySelector('#add-source-form').onsubmit = function(e) {
+    document.body.appendChild(dlg);
+    dlg.showModal();
+
+    const form = dlg.querySelector('#add-source-form');
+    const cancelBtn = dlg.querySelector('#cancel-add-source');
+
+    cancelBtn.addEventListener('click', () => {
+      dlg.close();
+      document.body.removeChild(dlg);
+    });
+
+    dlg.addEventListener('cancel', (e) => {
       e.preventDefault();
-      const type = modal.querySelector('select[name="type"]').value;
-      const name = modal.querySelector('input[name="name"]').value.trim();
+      dlg.close();
+      document.body.removeChild(dlg);
+    });
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const type = dlg.querySelector('select[name="type"]').value;
+      const name = dlg.querySelector('input[name="name"]').value.trim();
       if (!name || window.yamlConfigState.sources.some(s => s.name === name)) {
         alert('名称不能为空且不能重复');
         return;
@@ -137,11 +151,12 @@ document.addEventListener('DOMContentLoaded', function () {
       if (type === 'mongodb') {
         window.yamlConfigState.builtinTools.push({ name: 'mongo_execute_'+name, type, source: name, enabled: true });
       }
-      document.body.removeChild(modal);
+      dlg.close();
+      document.body.removeChild(dlg);
       renderSources();
       renderBuiltinTools();
       renderCustomTools();
-    };
+    });
   });
   renderSources();
 
@@ -159,9 +174,15 @@ document.addEventListener('DOMContentLoaded', function () {
       if (tool.type === 'mongodb') desc = 'MongoDB 通用操作';
       builtinToolsList.innerHTML += `
         <div>
-          <label>
+          <label class="switch">
             <input type="checkbox" data-idx="${idx}" ${tool.enabled ? 'checked' : ''}>
-            <b>${tool.name}</b> [${tool.type}] (source: ${tool.source}) - ${desc}
+            <span class="track"><span class="thumb"></span></span>
+            <span class="switch-label">
+              <b>${tool.name}</b>
+              <span class="badge-muted" style="margin-left:.35rem;">${desc}</span>
+              <span class="badge" style="margin-left:.35rem;">${tool.type}</span>
+              <span class="badge-info" style="margin-left:.35rem;">source: ${tool.source}</span>
+            </span>
           </label>
         </div>
       `;

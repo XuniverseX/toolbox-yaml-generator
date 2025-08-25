@@ -4,47 +4,110 @@
   <meta charset="UTF-8">
   <title>数据库 YAML 配置生成器</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="css/vendor/pico.min.css">
   <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/pico-overrides.css">
+  <link rel="stylesheet" href="css/components.css">
 </head>
 <body>
-  <header>
-    <h1>数据库 YAML 配置生成器</h1>
-    <p>支持多类型多数据源，内置/自定义工具可绑定任意 source，生成全局 tools/toolsets。</p>
+  <!-- Inline SVG sprite for icons -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <symbol id="ico-generate" viewBox="0 0 24 24">
+      <path d="M12 2l1.5 4.5L18 8l-4.5 1.5L12 14l-1.5-4.5L6 8l4.5-1.5L12 2z"/>
+    </symbol>
+    <symbol id="ico-import" viewBox="0 0 24 24">
+      <path d="M12 3v10m0 0l-3-3m3 3l3-3M4 19h16v2H4z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="ico-copy" viewBox="0 0 24 24">
+      <rect x="9" y="9" width="10" height="10" rx="2" ry="2" stroke="currentColor" fill="none" stroke-width="2"/>
+      <rect x="5" y="5" width="10" height="10" rx="2" ry="2" stroke="currentColor" fill="none" stroke-width="2" opacity="0.6"/>
+    </symbol>
+    <symbol id="ico-download" viewBox="0 0 24 24">
+      <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16v2H4z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="ico-add" viewBox="0 0 24 24">
+      <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="ico-delete" viewBox="0 0 24 24">
+      <path d="M6 7h12M9 7V5h6v2m-8 0l1 12h8l1-12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+    </symbol>
+  </svg>
+
+  <header class="page-header">
+    <div class="container-wide">
+      <h1>数据库 YAML 配置生成器</h1>
+      <p>支持多类型多数据源，内置/自定义工具可绑定任意 source，生成全局 tools/toolsets。</p>
+    </div>
   </header>
-  <main>
-    <section id="sources-manager">
-      <h2>数据源管理</h2>
-      <div id="sources-list"></div>
-      <button type="button" id="add-source-btn">添加数据源</button>
-    </section>
-    <section id="builtin-tools">
-      <h2>内置工具</h2>
-      <div id="builtin-tools-list"></div>
-    </section>
-    <section id="custom-tools">
-      <h2>自定义工具</h2>
-      <div id="custom-tools-list"></div>
-      <button type="button" id="add-custom-tool">添加自定义工具</button>
-    </section>
-    <section id="yaml-actions">
-      <h2>YAML 操作</h2>
-      <button type="button" id="generate-yaml">生成 YAML</button>
-      <button type="button" id="import-yaml">导入 YAML</button>
-      <input type="file" id="yaml-file-input" accept=".yaml,.yml" style="display:none">
-      <button type="button" id="copy-yaml" disabled>复制 YAML</button>
-      <button type="button" id="download-yaml" disabled>下载 YAML</button>
-    </section>
-    <section id="yaml-preview">
-      <h2>YAML 预览</h2>
-      <pre id="yaml-output" class="yaml-block"></pre>
-    </section>
-    <section id="messages">
-      <div id="msg-area"></div>
-    </section>
+
+  <main class="page-main">
+    <div class="container-wide grid-2">
+      <!-- 左侧：配置与工具 -->
+      <div id="left-col">
+        <section id="sources-manager" class="surface section">
+          <h2>数据源管理</h2>
+          <div id="sources-list"></div>
+          <button type="button" id="add-source-btn">
+            <svg class="icon" aria-hidden="true"><use href="#ico-add"/></svg>
+            添加数据源
+          </button>
+        </section>
+
+        <section id="builtin-tools" class="surface section">
+          <h2>内置工具</h2>
+          <div id="builtin-tools-list" class="list-compact"></div>
+        </section>
+
+        <section id="custom-tools" class="surface section">
+          <h2>自定义工具</h2>
+          <div id="custom-tools-list"></div>
+          <button type="button" id="add-custom-tool">
+            <svg class="icon" aria-hidden="true"><use href="#ico-add"/></svg>
+            添加自定义工具
+          </button>
+        </section>
+      </div>
+
+      <!-- 右侧：操作工具条与预览 -->
+      <div id="right-col">
+        <div class="toolbar mb-4">
+          <button type="button" id="generate-yaml" title="生成 YAML">
+            <svg class="icon" aria-hidden="true"><use href="#ico-generate"/></svg>
+            生成
+          </button>
+          <button type="button" id="import-yaml" title="导入 YAML">
+            <svg class="icon" aria-hidden="true"><use href="#ico-import"/></svg>
+            导入
+          </button>
+          <input type="file" id="yaml-file-input" accept=".yaml,.yml" style="display:none">
+          <button type="button" id="copy-yaml" disabled title="复制 YAML">
+            <svg class="icon" aria-hidden="true"><use href="#ico-copy"/></svg>
+            复制
+          </button>
+          <button type="button" id="download-yaml" disabled title="下载 YAML">
+            <svg class="icon" aria-hidden="true"><use href="#ico-download"/></svg>
+            下载
+          </button>
+        </div>
+
+        <section id="yaml-preview" class="surface section">
+          <h2>YAML 预览</h2>
+          <pre id="yaml-output" class="yaml-block"></pre>
+        </section>
+
+        <section id="messages" class="surface section">
+          <div id="msg-area"></div>
+        </section>
+      </div>
+    </div>
   </main>
-  <footer>
-    <small>本工具离线可用，所有数据仅在本地浏览器处理。源码与依赖遵循各自开源协议。</small>
+
+  <footer class="page-footer">
+    <div class="container-narrow">
+      <small>本工具离线可用，所有数据仅在本地浏览器处理。源码与依赖遵循各自开源协议。</small>
+    </div>
   </footer>
+
   <script src="libs/js-yaml.min.js"></script>
   <script src="js/state.js"></script>
   <script src="js/ui.js"></script>
@@ -52,6 +115,7 @@
   <script src="js/yamlImporter.js"></script>
   <script src="js/validation.js"></script>
   <script src="js/download.js"></script>
+  <script src="js/ui-utils.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

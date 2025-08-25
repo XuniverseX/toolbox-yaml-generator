@@ -1,0 +1,325 @@
+/*!
+  Pico-like minimal baseline (offline)
+  Note: This is a lightweight, self-contained baseline inspired by Pico.css,
+  provided to keep the app fully offline. It offers: container, grid, typography,
+  buttons, forms, tables, and dialog primitives with sensible defaults.
+  You may replace this with the official Pico build later if desired.
+*/
+
+/* 1) CSS Variables (Base Tokens) */
+:root {
+  --pico-font-sans: "PingFang SC","Microsoft YaHei",system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  --pico-font-mono: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+
+  --pico-color-text: #222;
+  --pico-color-muted: #666;
+  --pico-color-bg: #ffffff;
+  --pico-color-surface: #ffffff;
+  --pico-color-contrast: #0f1419;
+
+  --pico-primary: #1976d2;
+  --pico-primary-600: #1565c0;
+  --pico-primary-700: #0d47a1;
+
+  --pico-success: #2e7d32;
+  --pico-warning: #ef6c00;
+  --pico-danger: #d32f2f;
+  --pico-info: #0288d1;
+
+  --pico-border: #e0e0e0;
+  --pico-border-strong: #c7c7c7;
+
+  --pico-radius-sm: 6px;
+  --pico-radius-md: 10px;
+  --pico-radius-lg: 14px;
+
+  --pico-shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --pico-shadow-md: 0 2px 12px rgba(0,0,0,0.08);
+  --pico-shadow-lg: 0 6px 24px rgba(0,0,0,0.12);
+
+  --pico-spacing-1: 0.25rem;
+  --pico-spacing-2: 0.5rem;
+  --pico-spacing-3: 0.75rem;
+  --pico-spacing-4: 1rem;
+  --pico-spacing-5: 1.5rem;
+  --pico-spacing-6: 2rem;
+
+  --pico-line-width: 1px;
+}
+
+/* 2) Reset-ish */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  color: var(--pico-color-text);
+  background: #f7f7fa;
+  font-family: var(--pico-font-sans);
+  line-height: 1.55;
+  font-size: 16px;
+}
+
+/* 3) Typography */
+h1,h2,h3,h4,h5,h6 {
+  margin: 0 0 var(--pico-spacing-3) 0;
+  line-height: 1.25;
+  color: var(--pico-primary);
+  font-weight: 650;
+}
+h1 { font-size: 1.9rem; }
+h2 { font-size: 1.35rem; }
+h3 { font-size: 1.15rem; }
+p { margin: 0 0 var(--pico-spacing-3) 0; color: var(--pico-color-text); }
+small { color: var(--pico-color-muted); }
+
+a {
+  color: var(--pico-primary);
+  text-decoration: none;
+}
+a:hover { text-decoration: underline; }
+
+/* Code & Pre */
+code, kbd, samp {
+  font-family: var(--pico-font-mono);
+  font-size: 0.95em;
+  background: #f0f3f7;
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+  border: 1px solid #e7eaf0;
+}
+
+/* 4) Container & Grid */
+.container {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 var(--pico-spacing-4);
+}
+.container-narrow {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 var(--pico-spacing-4);
+}
+
+.grid {
+  display: grid;
+  gap: var(--pico-spacing-5);
+}
+@media (min-width: 980px) {
+  .grid.columns-2 {
+    grid-template-columns: 1.4fr 1fr;
+    align-items: start;
+  }
+}
+.section {
+  margin-bottom: var(--pico-spacing-6);
+}
+
+/* 5) Surface / Card */
+.surface {
+  background: var(--pico-color-surface);
+  border: var(--pico-line-width) solid var(--pico-border);
+  border-radius: var(--pico-radius-md);
+  box-shadow: var(--pico-shadow-sm);
+  padding: var(--pico-spacing-5);
+}
+.surface header {
+  margin-bottom: var(--pico-spacing-3);
+}
+
+/* 6) Buttons */
+button,
+.button,
+[type=button],
+[type=submit],
+[type=reset] {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+  background: var(--pico-primary);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.55em 1.1em;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background .15s ease, box-shadow .15s ease;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.03), 0 2px 6px rgba(0,0,0,0.06);
+}
+button:hover,
+.button:hover,
+[type=button]:hover,
+[type=submit]:hover,
+[type=reset]:hover { background: var(--pico-primary-600); }
+button:active { transform: translateY(0.5px); }
+button:disabled { background: #bdbdbd; cursor: not-allowed; }
+
+/* Button variants */
+.button-ghost {
+  background: transparent;
+  color: var(--pico-primary);
+  border: 1px solid var(--pico-border);
+}
+.button-outline {
+  background: #fff;
+  color: var(--pico-primary);
+  border: 1px solid var(--pico-primary);
+}
+.button-danger {
+  background: var(--pico-danger);
+}
+
+/* Icon sizing helper */
+.button .icon {
+  width: 1.1em; height: 1.1em; fill: currentColor; flex: none;
+}
+
+/* 7) Forms */
+label { display: block; margin-bottom: var(--pico-spacing-3); }
+label > span { display: inline-block; min-width: 5.5em; color: var(--pico-color-muted); }
+
+input[type=text],
+input[type=number],
+input[type=password],
+input[type=file],
+select,
+textarea {
+  width: 100%;
+  max-width: 560px;
+  background: #fafbfc;
+  color: var(--pico-color-text);
+  border: 1px solid var(--pico-border);
+  border-radius: 6px;
+  padding: 0.55em 0.7em;
+  font-size: 1rem;
+  outline: none;
+  transition: border .15s ease, box-shadow .15s ease;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--pico-primary);
+  box-shadow: 0 0 0 3px rgba(25,118,210,0.14);
+}
+
+/* Checkboxes and radios keep native but slightly larger */
+input[type=checkbox],
+input[type=radio] { transform: scale(1.1); cursor: pointer; }
+
+/* Fieldset */
+fieldset {
+  border: 1px solid var(--pico-border);
+  border-radius: var(--pico-radius-sm);
+  padding: var(--pico-spacing-4);
+}
+
+/* 8) Table (basic) */
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 0.6rem 0.6rem; border-bottom: 1px solid var(--pico-border); }
+th { text-align: left; color: var(--pico-color-muted); }
+
+/* 9) Header / Footer */
+header.page-header, footer.page-footer {
+  background: #fff;
+  border-bottom: 1px solid var(--pico-border);
+  padding: var(--pico-spacing-5) 0;
+}
+footer.page-footer {
+  border-top: 1px solid var(--pico-border);
+  border-bottom: none;
+  text-align: center;
+  color: var(--pico-color-muted);
+}
+
+/* 10) Toolbar (sticky) */
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #ffffffd9;
+  backdrop-filter: saturate(140%) blur(4px);
+  border: 1px solid var(--pico-border);
+  border-radius: var(--pico-radius-md);
+  padding: var(--pico-spacing-3);
+  display: flex;
+  align-items: center;
+  gap: var(--pico-spacing-3);
+  box-shadow: var(--pico-shadow-sm);
+}
+
+/* 11) Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  height: 1.4rem;
+  padding: 0 .5rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  color: #245;
+  background: #e8f1ff;
+  border: 1px solid #d6e6ff;
+}
+.badge-muted { background: #f0f3f7; color: #456; border-color: #e4e7ee; }
+.badge-success { background: #eaf6ed; color: #275; border-color: #cfe7d5; }
+.badge-danger { background: #fdecea; color: #833; border-color: #f6c9c5; }
+
+/* 12) Dialog (native) */
+dialog {
+  border: none;
+  border-radius: var(--pico-radius-md);
+  box-shadow: var(--pico-shadow-lg);
+  padding: var(--pico-spacing-5);
+  max-width: 520px;
+  width: calc(100% - 2rem);
+}
+dialog::backdrop {
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(1px);
+}
+
+/* 13) Utilities */
+.m-0 { margin: 0 !important; }
+.mt-1 { margin-top: var(--pico-spacing-1) !important; }
+.mt-2 { margin-top: var(--pico-spacing-2) !important; }
+.mt-3 { margin-top: var(--pico-spacing-3) !important; }
+.mt-4 { margin-top: var(--pico-spacing-4) !important; }
+.mt-5 { margin-top: var(--pico-spacing-5) !important; }
+.mb-0 { margin-bottom: 0 !important; }
+.mb-2 { margin-bottom: var(--pico-spacing-2) !important; }
+.mb-3 { margin-bottom: var(--pico-spacing-3) !important; }
+.mb-4 { margin-bottom: var(--pico-spacing-4) !important; }
+.mb-5 { margin-bottom: var(--pico-spacing-5) !important; }
+.p-0 { padding: 0 !important; }
+.p-2 { padding: var(--pico-spacing-2) !important; }
+.p-3 { padding: var(--pico-spacing-3) !important; }
+.p-4 { padding: var(--pico-spacing-4) !important; }
+.p-5 { padding: var(--pico-spacing-5) !important; }
+.hidden { display: none !important; }
+
+/* 14) Responsive helpers */
+@media (max-width: 900px) {
+  .container { padding: 0 var(--pico-spacing-3); }
+}
+
+/* 15) Scrollbar (webkit) */
+:root {
+  --scrollbar-bg: #f0f2f5;
+  --scrollbar-thumb: #c7cfdb;
+}
+*::-webkit-scrollbar {
+  width: 10px; height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-bg);
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 8px;
+  border: 2px solid var(--scrollbar-bg);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #b5becc;
+}

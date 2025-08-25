@@ -18,8 +18,15 @@ document.addEventListener('DOMContentLoaded', function () {
       btnCopy.disabled = false;
       btnDownload.disabled = false;
       msgArea.textContent = 'YAML 生成成功';
+      if (window.UIUtils && typeof UIUtils.showToast === 'function') {
+        UIUtils.showToast('YAML 生成成功', { type: 'success', title: '成功' });
+      }
     } catch (e) {
-      msgArea.textContent = '生成 YAML 失败: ' + e.message;
+      var _emsg = '生成 YAML 失败: ' + e.message;
+      msgArea.textContent = _emsg;
+      if (window.UIUtils && typeof UIUtils.showToast === 'function') {
+        UIUtils.showToast(_emsg, { type: 'error', title: '失败' });
+      }
     }
   });
 
@@ -27,8 +34,18 @@ document.addEventListener('DOMContentLoaded', function () {
   btnCopy.addEventListener('click', function () {
     if (!window.yamlConfigState.yamlText) return;
     navigator.clipboard.writeText(window.yamlConfigState.yamlText)
-      .then(() => { msgArea.textContent = '已复制到剪贴板'; })
-      .catch(() => { msgArea.textContent = '复制失败'; });
+      .then(() => {
+        msgArea.textContent = '已复制到剪贴板';
+        if (window.UIUtils && typeof UIUtils.showToast === 'function') {
+          UIUtils.showToast('已复制到剪贴板', { type: 'success', title: '已复制' });
+        }
+      })
+      .catch(() => {
+        msgArea.textContent = '复制失败';
+        if (window.UIUtils && typeof UIUtils.showToast === 'function') {
+          UIUtils.showToast('复制失败', { type: 'error', title: '失败' });
+        }
+      });
   });
 
   // 下载 YAML
@@ -46,6 +63,9 @@ document.addEventListener('DOMContentLoaded', function () {
       URL.revokeObjectURL(url);
     }, 100);
     msgArea.textContent = '已下载 YAML 文件';
+    if (window.UIUtils && typeof UIUtils.showToast === 'function') {
+      UIUtils.showToast('已下载 YAML 文件', { type: 'success', title: '已下载' });
+    }
   });
 
   // 导入 YAML
@@ -62,8 +82,15 @@ document.addEventListener('DOMContentLoaded', function () {
         const obj = window.jsyaml.load(evt.target.result);
         importYamlToState(obj);
         msgArea.textContent = 'YAML 导入成功，表单已回填';
+        if (window.UIUtils && typeof UIUtils.showToast === 'function') {
+          UIUtils.showToast('YAML 导入成功，表单已回填', { type: 'success', title: '导入成功' });
+        }
       } catch (e) {
-        msgArea.textContent = 'YAML 解析失败: ' + e.message;
+        var _perr = 'YAML 解析失败: ' + e.message;
+        msgArea.textContent = _perr;
+        if (window.UIUtils && typeof UIUtils.showToast === 'function') {
+          UIUtils.showToast(_perr, { type: 'error', title: '导入失败' });
+        }
       }
     };
     reader.readAsText(file);

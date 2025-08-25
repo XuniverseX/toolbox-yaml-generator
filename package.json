@@ -1,0 +1,17 @@
+{
+  "name": "toolbox-yaml-generator",
+  "version": "1.0.0",
+  "description": "Static YAML config visual generator for genai-toolbox. Local-first, offline runtime.",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "start": "http-server -c-1 -p 5173 .",
+    "preview": "http-server -c-1 -p 5173 dist",
+    "build": "node scripts/build.js",
+    "deploy": "npm run build && gh-pages -d dist"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.1.1",
+    "http-server": "^14.1.1"
+  }
+}
