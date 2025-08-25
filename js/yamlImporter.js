@@ -6,8 +6,30 @@ function importYamlToState(obj) {
   window.yamlConfigState.builtinTools = [];
   for (const [name, src] of Object.entries(obj.sources || {})) {
     const type = src.kind;
-    const config = { ...src };
+    let config = { ...src };
     delete config.kind;
+    // 统一 MongoDB 源配置为 { uri }，向后兼容旧字段
+    if (type === 'mongodb') {
+      const hasUri = typeof src.uri === 'string' && src.uri.trim() !== '';
+      if (hasUri) {
+        config = { uri: src.uri };
+      } else {
+        // 兼容旧式 host/port/user/password/database/options，按旧生成逻辑拼接
+        let uri = 'mongodb://';
+        if (src.user && src.password) {
+          uri += encodeURIComponent(src.user) + ':' + encodeURIComponent(src.password) + '@';
+        }
+        uri += src.host || 'localhost';
+        if (src.port) uri += ':' + src.port;
+        if (src.options && String(src.options).trim()) {
+          const opts = String(src.options);
+          uri += '/' + (src.database || '') + (opts.startsWith('?') ? opts : '?' + opts);
+        } else if (src.database) {
+          uri += '/' + src.database;
+        }
+        config = { uri };
+      }
+    }
     window.yamlConfigState.sources.push({ name, type, config });
     // 自动添加内置工具（仅识别常见 kind，其他类型可扩展）
     if (type === 'mysql') {

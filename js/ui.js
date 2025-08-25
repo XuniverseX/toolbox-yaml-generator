@@ -71,12 +71,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (src.type === 'mongodb') {
       return `
         <label>名称 <input type="text" class="source-name-input" data-idx="${idx}" data-oldname="${src.name}" value="${src.name}"></label>
-        <label>host <input type="text" data-idx="${idx}" data-field="host" value="${src.config.host||''}"></label>
-        <label>port <input type="number" data-idx="${idx}" data-field="port" value="${src.config.port||''}"></label>
-        <label>database <input type="text" data-idx="${idx}" data-field="database" value="${src.config.database||''}"></label>
-        <label>user <input type="text" data-idx="${idx}" data-field="user" value="${src.config.user||''}"></label>
-        <label>password <input type="password" data-idx="${idx}" data-field="password" value="${src.config.password||''}"></label>
-        <label>options <input type="text" data-idx="${idx}" data-field="options" value="${src.config.options||''}"></label>
+        <label>uri <input type="text" data-idx="${idx}" data-field="uri" placeholder="如 mongodb://user:pass@host:27017/db?retryWrites=true" value="${src.config.uri||''}"></label>
       `;
     }
     return '';
@@ -138,7 +133,7 @@ document.addEventListener('DOMContentLoaded', function () {
       let config = {};
       if (type === 'mysql') config = {host:'',port:'',database:'',user:'',password:'',queryTimeout:''};
       if (type === 'sqlite') config = {database:''};
-      if (type === 'mongodb') config = {host:'',port:'',database:'',user:'',password:'',options:''};
+      if (type === 'mongodb') config = {uri:''};
       window.yamlConfigState.sources.push({ name, type, config });
       // 自动添加内置工具
       if (type === 'mysql') {
@@ -204,6 +199,25 @@ document.addEventListener('DOMContentLoaded', function () {
       const sourceOptions = window.yamlConfigState.sources.map(s =>
         `<option value="${s.name}" ${tool.source===s.name?'selected':''}>${s.name} [${s.type}]</option>`
       ).join('');
+
+      const params = Array.isArray(tool.parameters) ? tool.parameters : [];
+      const paramsRows = params.map((p, pidx) => `
+        <div class="param-row" data-idx="${idx}" data-pidx="${pidx}" style="display:flex;gap:.5rem;align-items:flex-end;flex-wrap:wrap;margin:.35rem 0;">
+          <label>name
+            <input type="text" class="param-input" data-idx="${idx}" data-pidx="${pidx}" data-pfield="name" value="${p.name || ''}">
+          </label>
+          <label>description
+            <input type="text" class="param-input" data-idx="${idx}" data-pidx="${pidx}" data-pfield="description" value="${p.description || ''}">
+          </label>
+          <label>default
+            <input type="text" class="param-input" data-idx="${idx}" data-pidx="${pidx}" data-pfield="default" value="${p.default || ''}">
+          </label>
+          <button type="button" class="param-del button-ghost" data-idx="${idx}" data-pidx="${pidx}">
+            删除
+          </button>
+        </div>
+      `).join('');
+
       customToolsList.innerHTML += `
         <div class="custom-tool-block">
           <label>工具名 <input type="text" value="${tool.name}" data-idx="${idx}" data-field="name" required></label>
@@ -219,25 +233,71 @@ document.addEventListener('DOMContentLoaded', function () {
           </label>
           <label>描述 <input type="text" value="${tool.description||''}" data-idx="${idx}" data-field="description"></label>
           <label>SQL/操作 <input type="text" value="${tool.statement||''}" data-idx="${idx}" data-field="statement" required></label>
-          <label>参数（可选，逗号分隔）<input type="text" value="${(tool.parameters||[]).map(p=>p.name).join(',')}" data-idx="${idx}" data-field="parameters"></label>
+
+          <div class="params-section" data-idx="${idx}" style="margin:.5rem 0;">
+            <label style="display:block;margin-bottom:.35rem;">参数列表（类型固定为 string）</label>
+            <div class="params-rows">
+              ${paramsRows || ''}
+            </div>
+            <button type="button" class="param-add" data-idx="${idx}">
+              新增参数
+            </button>
+          </div>
+
           <button type="button" data-idx="${idx}" class="remove-tool">删除</button>
         </div>
       `;
     });
-    // 事件绑定
-    customToolsList.querySelectorAll('input,select').forEach(input => {
+
+    // 基础字段事件绑定（跳过参数行，参数行没有 data-field）
+    customToolsList.querySelectorAll('[data-field]').forEach(input => {
       input.addEventListener('input', e => {
         const idx = +e.target.dataset.idx;
         const field = e.target.dataset.field;
-        if (field === 'parameters') {
-          window.yamlConfigState.customTools[idx].parameters = e.target.value.split(',').map(s => s.trim()).filter(Boolean).map(n => ({
-            name: n, type: 'string', description: '', default: ''
-          }));
-        } else {
-          window.yamlConfigState.customTools[idx][field] = e.target.value;
+        window.yamlConfigState.customTools[idx][field] = e.target.value;
+      });
+    });
+
+    // 参数输入变更
+    customToolsList.querySelectorAll('.param-input').forEach(input => {
+      input.addEventListener('input', e => {
+        const idx = +e.target.dataset.idx;
+        const pidx = +e.target.dataset.pidx;
+        const pfield = e.target.dataset.pfield;
+        const tool = window.yamlConfigState.customTools[idx];
+        if (!Array.isArray(tool.parameters)) tool.parameters = [];
+        const current = tool.parameters[pidx] || { name: '', type: 'string', description: '', default: '' };
+        current[pfield] = e.target.value;
+        current.type = 'string';
+        tool.parameters[pidx] = current;
+      });
+    });
+
+    // 新增参数
+    customToolsList.querySelectorAll('.param-add').forEach(btn => {
+      btn.addEventListener('click', e => {
+        const idx = +e.target.dataset.idx;
+        const tool = window.yamlConfigState.customTools[idx];
+        if (!Array.isArray(tool.parameters)) tool.parameters = [];
+        tool.parameters.push({ name: '', type: 'string', description: '', default: '' });
+        renderCustomTools();
+      });
+    });
+
+    // 删除参数
+    customToolsList.querySelectorAll('.param-del').forEach(btn => {
+      btn.addEventListener('click', e => {
+        const idx = +e.target.dataset.idx;
+        const pidx = +e.target.dataset.pidx;
+        const tool = window.yamlConfigState.customTools[idx];
+        if (Array.isArray(tool.parameters)) {
+          tool.parameters.splice(pidx, 1);
+          renderCustomTools();
         }
       });
     });
+
+    // 删除自定义工具
     customToolsList.querySelectorAll('.remove-tool').forEach(btn => {
       btn.addEventListener('click', e => {
         const idx = +e.target.dataset.idx;

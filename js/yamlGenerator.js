@@ -22,21 +22,9 @@ function buildYamlConfig() {
       };
     }
     if (src.type === 'mongodb') {
-      let uri = 'mongodb://';
-      if (src.config.user && src.config.password) {
-        uri += encodeURIComponent(src.config.user) + ':' + encodeURIComponent(src.config.password) + '@';
-      }
-      uri += src.config.host || 'localhost';
-      if (src.config.port) uri += ':' + src.config.port;
-      if (src.config.options && src.config.options.trim()) {
-        uri += '/' + (src.config.database || '') + (src.config.options.startsWith('?') ? src.config.options : '?' + src.config.options);
-      } else if (src.config.database) {
-        uri += '/' + src.config.database;
-      }
       sources[src.name] = {
         kind: 'mongodb',
-        uri,
-        database: src.config.database
+        uri: src.config.uri
       };
     }
   }
@@ -115,6 +103,14 @@ function buildYamlConfig() {
   }
   for (const tool of state.customTools) {
     if (!tool.name || !tool.statement || !tool.source) continue;
+    // 参数校验：名称必填，类型固定为 string
+    if (Array.isArray(tool.parameters)) {
+      for (const p of tool.parameters) {
+        if (!p.name || !String(p.name).trim()) {
+          throw new Error('自定义工具 ' + tool.name + ' 存在未命名的参数');
+        }
+      }
+    }
     tools[tool.name] = {
       kind: tool.kind,
       source: tool.source,
@@ -122,7 +118,7 @@ function buildYamlConfig() {
       statement: tool.statement,
       parameters: (tool.parameters || []).map(p => ({
         name: p.name,
-        type: p.type || 'string',
+        type: 'string',
         description: p.description || '',
         default: p.default || ''
       }))
