@@ -144,7 +144,7 @@ document.addEventListener('DOMContentLoaded', function () {
         window.yamlConfigState.builtinTools.push({ name: 'sqlite_execute_'+name, type, source: name, enabled: true });
       }
       if (type === 'mongodb') {
-        window.yamlConfigState.builtinTools.push({ name: 'mongo_execute_'+name, type, source: name, enabled: true });
+        // MongoDB 不再自动生成内置工具，请使用“Mongo 工具向导”创建具体工具
       }
       dlg.close();
       document.body.removeChild(dlg);
@@ -218,6 +218,142 @@ document.addEventListener('DOMContentLoaded', function () {
         </div>
       `).join('');
 
+      // Mongo 工具标识与各组参数行构造
+      const isMongo = String(tool.kind || '').startsWith('mongodb-');
+
+      function buildParamRows(group, list) {
+        const arr = Array.isArray(list) ? list : [];
+        return arr.map((p, pidx) => `
+          <div class="param-row" data-idx="${idx}" data-pidx="${pidx}" data-group="${group}" style="display:flex;gap:.5rem;align-items:flex-end;flex-wrap:wrap;margin:.35rem 0;">
+            <label>name
+              <input type="text" class="mongo-param-input" data-idx="${idx}" data-pidx="${pidx}" data-group="${group}" data-pfield="name" value="${p.name || ''}">
+            </label>
+            <label>description
+              <input type="text" class="mongo-param-input" data-idx="${idx}" data-pidx="${pidx}" data-group="${group}" data-pfield="description" value="${p.description || ''}">
+            </label>
+            <label>default
+              <input type="text" class="mongo-param-input" data-idx="${idx}" data-pidx="${pidx}" data-group="${group}" data-pfield="default" value="${p.default || ''}">
+            </label>
+            <button type="button" class="mongo-param-del button-ghost" data-idx="${idx}" data-pidx="${pidx}" data-group="${group}">
+              删除
+            </button>
+          </div>
+        `).join('');
+      }
+
+      const filterParamRows = buildParamRows('filterParams', tool.filterParams);
+      const projectParamRows = buildParamRows('projectParams', tool.projectParams);
+      const sortParamRows = buildParamRows('sortParams', tool.sortParams);
+      const pipelineParamRows = buildParamRows('pipelineParams', tool.pipelineParams);
+      const updateParamRows = buildParamRows('updateParams', tool.updateParams);
+
+      let mongoFields = '';
+
+      if (isMongo) {
+        const commonTop = `
+          <div class="mongo-common" data-idx="${idx}" style="display:flex;gap:.5rem;flex-wrap:wrap;margin:.5rem 0;">
+            <label>database <input type="text" data-idx="${idx}" data-field="database" value="${tool.database||''}"></label>
+            <label>collection <input type="text" data-idx="${idx}" data-field="collection" value="${tool.collection||''}"></label>
+          </div>
+        `;
+        if (tool.kind === 'mongodb-find' || tool.kind === 'mongodb-find-one') {
+          mongoFields = `
+            ${commonTop}
+            <div class="mongo-section">
+              <label>filterPayload
+                <textarea data-idx="${idx}" data-field="filterPayload" rows="3" style="width:100%">${tool.filterPayload||''}</textarea>
+              </label>
+              <div class="params-section" data-idx="${idx}" style="margin:.5rem 0;">
+                <label style="display:block;margin-bottom:.35rem;">filterParams</label>
+                <div class="params-rows">${filterParamRows}</div>
+                <button type="button" class="mongo-param-add" data-idx="${idx}" data-group="filterParams">新增参数</button>
+              </div>
+              <label>projectPayload
+                <textarea data-idx="${idx}" data-field="projectPayload" rows="3" style="width:100%">${tool.projectPayload||''}</textarea>
+              </label>
+              <div class="params-section" data-idx="${idx}" style="margin:.5rem 0;">
+                <label style="display:block;margin-bottom:.35rem;">projectParams</label>
+                <div class="params-rows">${projectParamRows}</div>
+                <button type="button" class="mongo-param-add" data-idx="${idx}" data-group="projectParams">新增参数</button>
+              </div>
+              <label>sortPayload
+                <textarea data-idx="${idx}" data-field="sortPayload" rows="2" style="width:100%">${tool.sortPayload||''}</textarea>
+              </label>
+              <div class="params-section" data-idx="${idx}" style="margin:.5rem 0;">
+                <label style="display:block;margin-bottom:.35rem;">sortParams</label>
+                <div class="params-rows">${sortParamRows}</div>
+                <button type="button" class="mongo-param-add" data-idx="${idx}" data-group="sortParams">新增参数</button>
+              </div>
+              ${tool.kind === 'mongodb-find' ? `
+                <label>limit <input type="number" data-idx="${idx}" data-field="limit" value="${tool.limit||''}"></label>
+              ` : ``}
+            </div>
+          `;
+        } else if (tool.kind === 'mongodb-aggregate') {
+          mongoFields = `
+            ${commonTop}
+            <div class="mongo-section">
+              <label>pipelinePayload
+                <textarea data-idx="${idx}" data-field="pipelinePayload" rows="4" style="width:100%">${tool.pipelinePayload||''}</textarea>
+              </label>
+              <div class="params-section" data-idx="${idx}" style="margin:.5rem 0;">
+                <label style="display:block;margin-bottom:.35rem;">pipelineParams</label>
+                <div class="params-rows">${pipelineParamRows}</div>
+                <button type="button" class="mongo-param-add" data-idx="${idx}" data-group="pipelineParams">新增参数</button>
+              </div>
+              <label><input type="checkbox" data-idx="${idx}" data-field="canonical" ${tool.canonical ? 'checked':''}> canonical</label>
+              <label><input type="checkbox" data-idx="${idx}" data-field="readOnly" ${tool.readOnly ? 'checked':''}> readOnly</label>
+            </div>
+          `;
+        } else if (tool.kind === 'mongodb-insert-one' || tool.kind === 'mongodb-insert-many') {
+          mongoFields = `
+            ${commonTop}
+            <div class="mongo-section">
+              <p class="badge-muted">提示：文档数据由运行时输入参数 data 传入，不在 YAML 中固定。</p>
+              <label><input type="checkbox" data-idx="${idx}" data-field="canonical" ${tool.canonical ? 'checked':''}> canonical</label>
+            </div>
+          `;
+        } else if (tool.kind === 'mongodb-update-one' || tool.kind === 'mongodb-update-many') {
+          mongoFields = `
+            ${commonTop}
+            <div class="mongo-section">
+              <label>filterPayload
+                <textarea data-idx="${idx}" data-field="filterPayload" rows="3" style="width:100%">${tool.filterPayload||''}</textarea>
+              </label>
+              <div class="params-section" data-idx="${idx}" style="margin:.5rem 0;">
+                <label style="display:block;margin-bottom:.35rem;">filterParams</label>
+                <div class="params-rows">${filterParamRows}</div>
+                <button type="button" class="mongo-param-add" data-idx="${idx}" data-group="filterParams">新增参数</button>
+              </div>
+              <label>updatePayload
+                <textarea data-idx="${idx}" data-field="updatePayload" rows="3" style="width:100%">${tool.updatePayload||''}</textarea>
+              </label>
+              <div class="params-section" data-idx="${idx}" style="margin:.5rem 0;">
+                <label style="display:block;margin-bottom:.35rem;">updateParams</label>
+                <div class="params-rows">${updateParamRows}</div>
+                <button type="button" class="mongo-param-add" data-idx="${idx}" data-group="updateParams">新增参数</button>
+              </div>
+              <label><input type="checkbox" data-idx="${idx}" data-field="canonical" ${tool.canonical ? 'checked':''}> canonical</label>
+              <label><input type="checkbox" data-idx="${idx}" data-field="upsert" ${tool.upsert ? 'checked':''}> upsert</label>
+            </div>
+          `;
+        } else if (tool.kind === 'mongodb-delete-one' || tool.kind === 'mongodb-delete-many') {
+          mongoFields = `
+            ${commonTop}
+            <div class="mongo-section">
+              <label>filterPayload
+                <textarea data-idx="${idx}" data-field="filterPayload" rows="3" style="width:100%">${tool.filterPayload||''}</textarea>
+              </label>
+              <div class="params-section" data-idx="${idx}" style="margin:.5rem 0;">
+                <label style="display:block;margin-bottom:.35rem;">filterParams</label>
+                <div class="params-rows">${filterParamRows}</div>
+                <button type="button" class="mongo-param-add" data-idx="${idx}" data-group="filterParams">新增参数</button>
+              </div>
+            </div>
+          `;
+        }
+      }
+
       customToolsList.innerHTML += `
         <div class="custom-tool-block">
           <label>工具名 <input type="text" value="${tool.name}" data-idx="${idx}" data-field="name" required></label>
@@ -225,16 +361,24 @@ document.addEventListener('DOMContentLoaded', function () {
             <select data-idx="${idx}" data-field="kind">
               <option value="mysql-sql" ${tool.kind==='mysql-sql'?'selected':''}>mysql-sql</option>
               <option value="sqlite-sql" ${tool.kind==='sqlite-sql'?'selected':''}>sqlite-sql</option>
-              <option value="mongodb-execute" ${tool.kind==='mongodb-execute'?'selected':''}>mongodb-execute</option>
+              <option value="mongodb-find" ${tool.kind==='mongodb-find'?'selected':''}>mongodb-find</option>
+              <option value="mongodb-find-one" ${tool.kind==='mongodb-find-one'?'selected':''}>mongodb-find-one</option>
+              <option value="mongodb-aggregate" ${tool.kind==='mongodb-aggregate'?'selected':''}>mongodb-aggregate</option>
+              <option value="mongodb-insert-one" ${tool.kind==='mongodb-insert-one'?'selected':''}>mongodb-insert-one</option>
+              <option value="mongodb-insert-many" ${tool.kind==='mongodb-insert-many'?'selected':''}>mongodb-insert-many</option>
+              <option value="mongodb-update-one" ${tool.kind==='mongodb-update-one'?'selected':''}>mongodb-update-one</option>
+              <option value="mongodb-update-many" ${tool.kind==='mongodb-update-many'?'selected':''}>mongodb-update-many</option>
+              <option value="mongodb-delete-one" ${tool.kind==='mongodb-delete-one'?'selected':''}>mongodb-delete-one</option>
+              <option value="mongodb-delete-many" ${tool.kind==='mongodb-delete-many'?'selected':''}>mongodb-delete-many</option>
             </select>
           </label>
           <label>绑定数据源
             <select data-idx="${idx}" data-field="source">${sourceOptions}</select>
           </label>
           <label>描述 <input type="text" value="${tool.description||''}" data-idx="${idx}" data-field="description"></label>
-          <label>SQL/操作 <input type="text" value="${tool.statement||''}" data-idx="${idx}" data-field="statement" required></label>
+          <label ${String(tool.kind||'').startsWith('mongodb-') ? 'style="display:none"' : ''}>SQL/操作 <input type="text" value="${tool.statement||''}" data-idx="${idx}" data-field="statement" ${String(tool.kind||'').startsWith('mongodb-') ? '' : 'required'}></label>
 
-          <div class="params-section" data-idx="${idx}" style="margin:.5rem 0;">
+          <div class="params-section" data-idx="${idx}" style="margin:.5rem 0; ${String(tool.kind||'').startsWith('mongodb-') ? 'display:none;' : ''}">
             <label style="display:block;margin-bottom:.35rem;">参数列表（类型固定为 string）</label>
             <div class="params-rows">
               ${paramsRows || ''}
@@ -244,6 +388,10 @@ document.addEventListener('DOMContentLoaded', function () {
             </button>
           </div>
 
+          <div class="mongo-fields" ${String(tool.kind||'').startsWith('mongodb-') ? '' : 'style="display:none"'}>
+            ${mongoFields}
+          </div>
+
           <button type="button" data-idx="${idx}" class="remove-tool">删除</button>
         </div>
       `;
@@ -251,11 +399,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 基础字段事件绑定（跳过参数行，参数行没有 data-field）
     customToolsList.querySelectorAll('[data-field]').forEach(input => {
-      input.addEventListener('input', e => {
+      const handler = e => {
         const idx = +e.target.dataset.idx;
         const field = e.target.dataset.field;
-        window.yamlConfigState.customTools[idx][field] = e.target.value;
-      });
+        const isCheckbox = e.target.type === 'checkbox';
+        window.yamlConfigState.customTools[idx][field] = isCheckbox ? e.target.checked : e.target.value;
+      };
+      input.addEventListener('input', handler);
+      input.addEventListener('change', handler);
     });
 
     // 参数输入变更
@@ -284,6 +435,18 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     });
 
+    // Mongo 组参数：新增
+    customToolsList.querySelectorAll('.mongo-param-add').forEach(btn => {
+      btn.addEventListener('click', e => {
+        const idx = +e.target.dataset.idx;
+        const group = e.target.dataset.group;
+        const tool = window.yamlConfigState.customTools[idx];
+        if (!Array.isArray(tool[group])) tool[group] = [];
+        tool[group].push({ name: '', type: 'string', description: '', default: '' });
+        renderCustomTools();
+      });
+    });
+
     // 删除参数
     customToolsList.querySelectorAll('.param-del').forEach(btn => {
       btn.addEventListener('click', e => {
@@ -294,6 +457,36 @@ document.addEventListener('DOMContentLoaded', function () {
           tool.parameters.splice(pidx, 1);
           renderCustomTools();
         }
+      });
+    });
+
+    // Mongo 组参数：删除
+    customToolsList.querySelectorAll('.mongo-param-del').forEach(btn => {
+      btn.addEventListener('click', e => {
+        const idx = +e.target.dataset.idx;
+        const pidx = +e.target.dataset.pidx;
+        const group = e.target.dataset.group;
+        const tool = window.yamlConfigState.customTools[idx];
+        if (Array.isArray(tool[group])) {
+          tool[group].splice(pidx, 1);
+          renderCustomTools();
+        }
+      });
+    });
+
+    // Mongo 组参数：输入变更
+    customToolsList.querySelectorAll('.mongo-param-input').forEach(input => {
+      input.addEventListener('input', e => {
+        const idx = +e.target.dataset.idx;
+        const pidx = +e.target.dataset.pidx;
+        const pfield = e.target.dataset.pfield;
+        const group = e.target.dataset.group;
+        const tool = window.yamlConfigState.customTools[idx];
+        if (!Array.isArray(tool[group])) tool[group] = [];
+        const current = tool[group][pidx] || { name: '', type: 'string', description: '', default: '' };
+        current[pfield] = e.target.value;
+        current.type = 'string';
+        tool[group][pidx] = current;
       });
     });
 

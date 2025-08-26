@@ -31,15 +31,18 @@ function validateConfig() {
     }
     return '';
   } else if (state.type === 'mongodb') {
-    const s = state.mongoSource;
-    if (!s.uri || !s.database) return 'MongoDB 源的 URI 和数据库名为必填';
+    const s = state.mongoSource || {};
+    if (!s.uri) return 'MongoDB 源的 URI 为必填';
     // 工具名唯一
-    const names = new Set(['mongo_execute']);
+    const names = new Set();
     for (const t of state.customTools) {
       if (!t.name) return '自定义工具名不能为空';
       if (names.has(t.name)) return '工具名重复: ' + t.name;
       names.add(t.name);
-      if (!t.statement) return `自定义工具 ${t.name} 的操作/表达式不能为空`;
+      // Mongo 官方工具不要求 statement；其他类型仍需 statement
+      const kind = String(t.kind || '');
+      const isMongoKind = kind.startsWith('mongodb-');
+      if (!isMongoKind && !t.statement) return `自定义工具 ${t.name} 的 SQL/操作不能为空`;
     }
     return '';
   }

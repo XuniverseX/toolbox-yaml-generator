@@ -33,14 +33,22 @@
 
 3) 内置工具
 
-- 每个数据源自动生成对应的内置工具，并可通过勾选启用/禁用：
+- 每个数据源自动生成的内置工具如下（可勾选启用/禁用）：
   - MySQL: execute_sql_${source}、list_tables_${source}
   - SQLite: sqlite_execute_${source}
-  - MongoDB: mongo_execute_${source}
+- MongoDB 不再自动生成“通用执行器”。请使用“Mongo 工具向导”创建官方支持的具体工具种类：mongodb-find、mongodb-find-one、mongodb-aggregate、mongodb-insert-one、mongodb-insert-many、mongodb-update-one、mongodb-update-many、mongodb-delete-one、mongodb-delete-many。
 
 4) 自定义工具
 
-- 在“自定义工具”中可添加自定义工具，填写工具名、类型、绑定数据源、描述、SQL/操作、参数（可增删行，包含 name、description、default，类型固定为 string）。
+- 在“自定义工具”中可添加自定义工具，填写工具名、类型、绑定数据源、描述与参数。
+  - 当类型为 mysql-sql 或 sqlite-sql 时，需填写 SQL 语句 statement，并可编辑通用参数列表（name、description、default，类型固定为 string）。
+  - 当类型为 mongodb-*（九种官方工具）时，将显示 Mongo 专用字段与参数分组，不再使用 statement：
+    - 通用字段：database、collection
+    - find/find-one：filterPayload/filterParams；可选 projectPayload/projectParams、sortPayload/sortParams、limit（仅 find）
+    - aggregate：pipelinePayload/pipelineParams；可选 canonical、readOnly
+    - insert-one/insert-many：canonical（文档数据在运行时通过 data 参数输入）
+    - update-one/update-many：filterPayload/filterParams、updatePayload/updateParams、canonical；可选 upsert
+    - delete-one/delete-many：filterPayload/filterParams
 - 工具名全局唯一（内置与自定义之间不允许重名）。
 
 5) 生成与导出

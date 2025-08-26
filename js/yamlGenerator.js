@@ -30,6 +30,109 @@ function buildYamlConfig() {
   }
   // tools
   const tools = {};
+
+  // Helper to build MongoDB tool configs that match genai-toolbox official kinds
+  function buildMongoToolConfig(tool) {
+    const base = {
+      kind: tool.kind,
+      source: tool.source,
+      description: tool.description || ''
+    };
+    const withDBColl = (obj) => {
+      obj.database = tool.database || '';
+      obj.collection = tool.collection || '';
+      return obj;
+    };
+    switch (tool.kind) {
+      case 'mongodb-find': {
+        const obj = withDBColl({
+          ...base,
+          filterPayload: tool.filterPayload || '',
+          filterParams: Array.isArray(tool.filterParams) ? tool.filterParams : []
+        });
+        if (tool.projectPayload) obj.projectPayload = tool.projectPayload;
+        if (Array.isArray(tool.projectParams)) obj.projectParams = tool.projectParams;
+        if (tool.sortPayload) obj.sortPayload = tool.sortPayload;
+        if (Array.isArray(tool.sortParams)) obj.sortParams = tool.sortParams;
+        if (typeof tool.limit === 'number' && !isNaN(tool.limit) && tool.limit > 0) {
+          obj.limit = Math.trunc(tool.limit);
+        }
+        return obj;
+      }
+      case 'mongodb-find-one': {
+        const obj = withDBColl({
+          ...base,
+          filterPayload: tool.filterPayload || '',
+          filterParams: Array.isArray(tool.filterParams) ? tool.filterParams : []
+        });
+        if (tool.projectPayload) obj.projectPayload = tool.projectPayload;
+        if (Array.isArray(tool.projectParams)) obj.projectParams = tool.projectParams;
+        if (tool.sortPayload) obj.sortPayload = tool.sortPayload;
+        if (Array.isArray(tool.sortParams)) obj.sortParams = tool.sortParams;
+        return obj;
+      }
+      case 'mongodb-aggregate': {
+        const obj = withDBColl({
+          ...base,
+          pipelinePayload: tool.pipelinePayload || '',
+          pipelineParams: Array.isArray(tool.pipelineParams) ? tool.pipelineParams : []
+        });
+        if (tool.canonical === true) obj.canonical = true;
+        if (tool.readOnly === true) obj.readOnly = true;
+        return obj;
+      }
+      case 'mongodb-insert-one': {
+        const obj = withDBColl({
+          ...base,
+          canonical: !!tool.canonical
+        });
+        return obj;
+      }
+      case 'mongodb-insert-many': {
+        const obj = withDBColl({
+          ...base,
+          canonical: !!tool.canonical
+        });
+        return obj;
+      }
+      case 'mongodb-update-one': {
+        const obj = withDBColl({
+          ...base,
+          filterPayload: tool.filterPayload || '',
+          filterParams: Array.isArray(tool.filterParams) ? tool.filterParams : [],
+          updatePayload: tool.updatePayload || '',
+          updateParams: Array.isArray(tool.updateParams) ? tool.updateParams : [],
+          canonical: !!tool.canonical
+        });
+        if (tool.upsert === true) obj.upsert = true;
+        return obj;
+      }
+      case 'mongodb-update-many': {
+        const obj = withDBColl({
+          ...base,
+          filterPayload: tool.filterPayload || '',
+          filterParams: Array.isArray(tool.filterParams) ? tool.filterParams : [],
+          updatePayload: tool.updatePayload || '',
+          updateParams: Array.isArray(tool.updateParams) ? tool.updateParams : [],
+          canonical: !!tool.canonical
+        });
+        if (tool.upsert === true) obj.upsert = true;
+        return obj;
+      }
+      case 'mongodb-delete-one':
+      case 'mongodb-delete-many': {
+        const obj = withDBColl({
+          ...base,
+          filterPayload: tool.filterPayload || '',
+          filterParams: Array.isArray(tool.filterParams) ? tool.filterParams : []
+        });
+        return obj;
+      }
+      default:
+        return base;
+    }
+  }
+
   for (const tool of state.builtinTools) {
     if (!tool.enabled) continue;
     if (tool.type === 'mysql' && tool.name.startsWith('execute_sql')) {
@@ -76,30 +179,6 @@ function buildYamlConfig() {
         ]
       };
     }
-    if (tool.type === 'mongodb') {
-      tools[tool.name] = {
-        kind: 'mongodb-execute',
-        source: tool.source,
-        description: 'MongoDB 通用操作',
-        parameters: [
-          {
-            name: "collection",
-            type: "string",
-            description: "集合名"
-          },
-          {
-            name: "operation",
-            type: "string",
-            description: "操作类型，如 find、aggregate、insert、update、delete"
-          },
-          {
-            name: "query",
-            type: "object",
-            description: "操作参数（如 filter、document、pipeline 等）"
-          }
-        ]
-      };
-    }
   }
   for (const tool of state.customTools) {
     if (!tool.name || !tool.statement || !tool.source) continue;
@@ -111,18 +190,23 @@ function buildYamlConfig() {
         }
       }
     }
-    tools[tool.name] = {
-      kind: tool.kind,
-      source: tool.source,
-      description: tool.description || '',
-      statement: tool.statement,
-      parameters: (tool.parameters || []).map(p => ({
-        name: p.name,
-        type: 'string',
-        description: p.description || '',
-        default: p.default || ''
-      }))
-    };
+    // MongoDB official kinds use structured payload fields instead of generic statement/parameters
+    if (String(tool.kind || '').startsWith('mongodb-')) {
+      tools[tool.name] = buildMongoToolConfig(tool);
+    } else {
+      tools[tool.name] = {
+        kind: tool.kind,
+        source: tool.source,
+        description: tool.description || '',
+        statement: tool.statement,
+        parameters: (tool.parameters || []).map(p => ({
+          name: p.name,
+          type: 'string',
+          description: p.description || '',
+          default: p.default || ''
+        }))
+      };
+    }
   }
   // toolsets
   const toolsets = {

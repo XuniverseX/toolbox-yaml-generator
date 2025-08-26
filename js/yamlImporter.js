@@ -39,9 +39,6 @@ function importYamlToState(obj) {
     if (type === 'sqlite') {
       window.yamlConfigState.builtinTools.push({ name: 'sqlite_execute_' + name, type, source: name, enabled: false });
     }
-    if (type === 'mongodb') {
-      window.yamlConfigState.builtinTools.push({ name: 'mongo_execute_' + name, type, source: name, enabled: false });
-    }
     if (type === 'postgres') {
       window.yamlConfigState.builtinTools.push({ name: 'pg_execute_' + name, type, source: name, enabled: false });
       window.yamlConfigState.builtinTools.push({ name: 'pg_list_tables_' + name, type, source: name, enabled: false });
@@ -59,11 +56,71 @@ function importYamlToState(obj) {
   for (const [name, tool] of Object.entries(obj.tools || {})) {
     // 跳过已知内置工具
     if (/^(execute_sql_|list_tables_|sqlite_execute_|mongo_execute_|pg_execute_|pg_list_tables_)/.test(name)) continue;
-    window.yamlConfigState.customTools.push({
+
+    const kind = tool.kind || '';
+    const base = {
       name,
-      kind: tool.kind,
+      kind,
       source: tool.source,
-      description: tool.description || '',
+      description: tool.description || ''
+    };
+
+    function mapParams(arr) {
+      if (!Array.isArray(arr)) return [];
+      return arr.map(p => ({
+        name: (p && p.name) ? p.name : '',
+        type: 'string',
+        description: (p && p.description) ? p.description : '',
+        default: (p && p.default) ? p.default : ''
+      }));
+    }
+
+    // 兼容历史：跳过已废弃的 mongodb-execute 工具
+    if (kind === 'mongodb-execute') {
+      continue;
+    }
+
+    // 针对 MongoDB 官方工具，回填结构化字段；其他类型沿用原有 statement/parameters
+    if (typeof kind === 'string' && kind.startsWith('mongodb-')) {
+      const t = { ...base };
+      // 通用
+      if (tool.database) t.database = tool.database;
+      if (tool.collection) t.collection = tool.collection;
+
+      if (kind === 'mongodb-find' || kind === 'mongodb-find-one') {
+        t.filterPayload = tool.filterPayload || '';
+        t.filterParams = mapParams(tool.filterParams);
+        if (tool.projectPayload) t.projectPayload = tool.projectPayload;
+        if (tool.projectParams) t.projectParams = mapParams(tool.projectParams);
+        if (tool.sortPayload) t.sortPayload = tool.sortPayload;
+        if (tool.sortParams) t.sortParams = mapParams(tool.sortParams);
+        if (kind === 'mongodb-find' && typeof tool.limit === 'number') t.limit = tool.limit;
+      } else if (kind === 'mongodb-aggregate') {
+        t.pipelinePayload = tool.pipelinePayload || '';
+        t.pipelineParams = mapParams(tool.pipelineParams);
+        if (tool.canonical === true) t.canonical = true;
+        if (tool.readOnly === true) t.readOnly = true;
+      } else if (kind === 'mongodb-insert-one' || kind === 'mongodb-insert-many') {
+        t.canonical = !!tool.canonical;
+      } else if (kind === 'mongodb-update-one' || kind === 'mongodb-update-many') {
+        t.filterPayload = tool.filterPayload || '';
+        t.filterParams = mapParams(tool.filterParams);
+        t.updatePayload = tool.updatePayload || '';
+        t.updateParams = mapParams(tool.updateParams);
+        t.canonical = !!tool.canonical;
+        if (tool.upsert === true) t.upsert = true;
+      } else if (kind === 'mongodb-delete-one' || kind === 'mongodb-delete-many') {
+        t.filterPayload = tool.filterPayload || '';
+        t.filterParams = mapParams(tool.filterParams);
+      }
+
+      window.yamlConfigState.customTools.push(t);
+      continue;
+    }
+
+    // 其他（如 MySQL/SQLite 自定义）保持原逻辑
+    window.yamlConfigState.customTools.push({
+      ...base,
       statement: tool.statement || '',
       parameters: Array.isArray(tool.parameters) ? tool.parameters.map(p => ({
         name: p.name || '', type: p.type || 'string', description: p.description || '', default: p.default || ''
