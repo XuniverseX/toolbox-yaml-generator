@@ -237,6 +237,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // 自定义工具区
   const customToolsList = document.getElementById('custom-tools-list');
   function renderCustomTools() {
+    console.log('Rendering custom tools:', window.yamlConfigState.customTools);
     customToolsList.innerHTML = '';
     window.yamlConfigState.customTools.forEach((tool, idx) => {
       const sourceOptions = window.yamlConfigState.sources.map(s =>
@@ -401,7 +402,7 @@ document.addEventListener('DOMContentLoaded', function () {
         <div class="custom-tool-block">
           <label>工具名 <input type="text" value="${tool.name}" data-idx="${idx}" data-field="name" required></label>
           <label>类型
-            <select data-idx="${idx}" data-field="kind">
+            <select data-idx="${idx}" data-field="kind" onchange="handleKindChange(event)">
               <option value="mysql-sql" ${tool.kind==='mysql-sql'?'selected':''}>mysql-sql</option>
               <option value="sqlite-sql" ${tool.kind==='sqlite-sql'?'selected':''}>sqlite-sql</option>
               <option value="redis" ${tool.kind==='redis'?'selected':''}>redis</option>
@@ -601,6 +602,14 @@ document.addEventListener('DOMContentLoaded', function () {
         renderCustomTools();
       });
     });
+    
+    function handleKindChange(event) {
+      const idx = +event.target.dataset.idx;
+      const newKind = event.target.value;
+      window.yamlConfigState.customTools[idx].kind = newKind;
+      renderCustomTools();
+    }
+    window.handleKindChange = handleKindChange;
   }
   document.getElementById('add-custom-tool').addEventListener('click', () => {
     const firstSource = window.yamlConfigState.sources[0]?.name || '';
