@@ -1,0 +1,73 @@
+sources:
+  mongo_alarm:
+    kind: mongodb
+    uri: ${MONGO_URI}  # 例如 mongodb://user:pass@host:27017/?retryWrites=true
+
+tools:
+  alarm_find:
+    kind: mongodb-find
+    source: mongo_alarm
+    description: 查询 alarm 库的 alarm 集合
+    database: alarm
+    collection: alarm
+    filterPayload: |
+      {
+        "$and": [
+          { "status": { "$eq": {{json .status}} } },
+          { "id": { "$regex": {{json .id}}, "$options": "i" } }
+        ]
+      }
+    filterParams:
+      - name: status
+        type: string
+        description: 告警状态
+      - name: id
+        type: string
+        description: 告警ID（模糊匹配，留空不过滤）
+        default: ""
+    projectPayload: |
+      {
+        "_id": 0,
+        "id": 1,
+        "status": 1,
+        "createdAt": 1,
+        "message": 1
+      }
+    sortPayload: |
+      { "createdAt": -1 }
+    # 可选：限制返回条数
+    # limit: 100
+  alarm_find_by_time:
+    kind: mongodb-aggregate
+    source: mongo_alarm
+    description: 按时间范围查询 alarm 库的 alarm 集合
+    database: alarm
+    collection: alarm
+    pipelinePayload: |
+      [
+        {
+          "$match": {
+            "$and": [
+              { "status": { "$eq": {{json .status}} } },
+              { "id": { "$regex": {{json .id}}, "$options": "i" } },
+              { "createdAt": { "$gte": {{json .startTime}}, "$lte": {{json .endTime}} } }
+            ]
+          }
+        },
+        { "$project": { "_id": 0, "id": 1, "id": 1, "status": 1, "createdAt": 1, "message": 1 } },
+        { "$sort": { "createdAt": -1 } }
+      ]
+    pipelineParams:
+      - name: status
+        type: string
+        description: 告警状态
+      - name: id
+        type: string
+        description: 告警ID（模糊匹配，留空不过滤）
+        default: ""
+      - name: startTime
+        type: string
+        description: 起始时间（ISO8601 字符串或可被后端解析为日期）
+      - name: endTime
+        type: string
+        description: 结束时间（ISO8601 字符串或可被后端解析为日期）
