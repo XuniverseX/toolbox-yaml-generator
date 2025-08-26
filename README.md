@@ -7,6 +7,8 @@
 - MySQL
 - SQLite
 - MongoDB
+- Redis
+- HTTP
 
 核心页面与脚本
 
@@ -36,19 +38,26 @@
 - 每个数据源自动生成的内置工具如下（可勾选启用/禁用）：
   - MySQL: execute_sql_${source}、list_tables_${source}
   - SQLite: sqlite_execute_${source}
+  - Redis: redis_ping_${source}、redis_get_${source}、redis_set_${source}
 - MongoDB 不再自动生成“通用执行器”。请使用“Mongo 工具向导”创建官方支持的具体工具种类：mongodb-find、mongodb-find-one、mongodb-aggregate、mongodb-insert-one、mongodb-insert-many、mongodb-update-one、mongodb-update-many、mongodb-delete-one、mongodb-delete-many。
+- HTTP 不自动生成内置工具，请使用 HTTP 自定义工具编辑器配置。
 
 4) 自定义工具
 
 - 在“自定义工具”中可添加自定义工具，填写工具名、类型、绑定数据源、描述与参数。
-  - 当类型为 mysql-sql 或 sqlite-sql 时，需填写 SQL 语句 statement，并可编辑通用参数列表（name、description、default，类型固定为 string）。
-  - 当类型为 mongodb-*（九种官方工具）时，将显示 Mongo 专用字段与参数分组，不再使用 statement：
+  - mysql-sql / sqlite-sql：需填写 SQL 语句 statement；参数列表（name、description、default，类型固定 string）。
+  - mongodb-*（九种官方工具）：显示 Mongo 专用字段与参数分组，不使用 statement：
     - 通用字段：database、collection
     - find/find-one：filterPayload/filterParams；可选 projectPayload/projectParams、sortPayload/sortParams、limit（仅 find）
     - aggregate：pipelinePayload/pipelineParams；可选 canonical、readOnly
     - insert-one/insert-many：canonical（文档数据在运行时通过 data 参数输入）
     - update-one/update-many：filterPayload/filterParams、updatePayload/updateParams、canonical；可选 upsert
     - delete-one/delete-many：filterPayload/filterParams
+  - redis：使用命令编辑器（每行一条命令，空格分隔参数；支持 $name 占位符）；参数列表输出到 tools.Parameters（类型为 string）。
+    - 示例：SET $key $value、GET $key、LPUSH $list $values（数组参数将在执行时展开）
+  - http：提供 method、path（支持 {{param}} 模板）、headers（KV 文本）、requestBody（模板），以及四组参数 path/query/body/header（类型为 string）。
+    - 说明：请求实际执行时会将 Source.headers 与 Tool.headers 合并，Tool 覆盖 Source
+- 占位符规则：Redis 使用 $name；HTTP 路径/体模板使用 {{name}}
 - 工具名全局唯一（内置与自定义之间不允许重名）。
 
 5) 生成与导出
@@ -85,6 +94,21 @@ sources:
     database: demo
     user: root
     password: xxx
+  myredis:
+    kind: redis
+    address:
+      - 127.0.0.1:6379
+    # username: ${USER}
+    # password: ${PASS}
+    # database: 0
+    # clusterEnabled: false
+    # useGCPIAM: false
+  myapi:
+    kind: http
+    baseUrl: https://api.example.com
+    timeout: 30s
+    headers:
+      Accept: application/json
 tools:
   execute_sql_mydb:
     kind: mysql-execute-sql
@@ -95,10 +119,37 @@ tools:
     source: mydb
     description: MySQL 表结构/元数据查询
     statement: SELECT ...
+  redis_ping_myredis:
+    kind: redis
+    source: myredis
+    description: Redis PING 健康检查
+    commands:
+      - [ "PING" ]
+  redis_get_myredis:
+    kind: redis
+    source: myredis
+    description: Redis GET
+    commands:
+      - [ "GET", "$key" ]
+    parameters:
+      - { name: key, type: string }
+  http_get_user:
+    kind: http
+    source: myapi
+    description: 获取用户信息
+    method: GET
+    path: /users/{{userId}}
+    headerParams:
+      - { name: Authorization, type: string }
+    pathParams:
+      - { name: userId, type: string }
 toolsets:
   all-database-tools:
     - execute_sql_mydb
     - list_tables_mydb
+    - redis_ping_myredis
+    - redis_get_myredis
+    - http_get_user
 ```
 
 ## 依赖说明
@@ -133,6 +184,16 @@ toolsets:
   - 修复导入 YAML 后不显示数据源的问题：将 UI 渲染函数暴露为全局以供导入逻辑调用，参见 [renderSources()](js/ui.js)、[renderBuiltinTools()](js/ui.js)、[renderCustomTools()](js/ui.js) 的 window 绑定。
   - 导入时恢复内置工具启用状态：若 YAML 中存在同名内置工具，则在 [importYamlToState()](js/yamlImporter.js) 中自动将对应内置工具 enabled 设为 true。
   - 修复删除数据源的联动清理：在 [renderSources() 删除监听](js/ui.js) 中先缓存被删项名称再移除，并据此过滤相应内置工具。
+
+## 导入 YAML 支持说明
+
+- 支持导入 kind=redis 与 kind=http 的 sources 与 tools，并回填至界面：
+  - Redis 源：address 可为数组或单行/多行字符串；其余字段按界面项回填
+  - HTTP 源：headers/queryParams 对象将转换为“key: value”多行文本；timeout 默认 30s
+  - 内置 Redis 工具：如 YAML 中存在 redis_ping_/redis_get_/redis_set_，将自动勾选对应内置工具
+  - 自定义 Redis 工具：commands 数组将回填为 commandsText 多行输入；parameters 回填
+  - 自定义 HTTP 工具：method/path/headersText/requestBody 与四组参数（path/query/body/header）回填
+- 生成与导入之间可实现等价往返（KV 顺序不保证稳定）
 
 ## 本地开发与部署
 

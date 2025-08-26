@@ -1,0 +1,92 @@
+# QA 示例：1 个 Redis 源 + 1 个 Elasticsearch(HTTP) 源，含内置与自定义工具
+# 用法：
+# 1) 在生成器页面点击“导入 YAML”，选择本文件
+# 2) 确认 UI 中的源与工具正确回填（Redis 内置工具应被自动识别并可开关）
+# 3) 点击“生成 YAML”，比较导出的 YAML 与本文件（键值顺序可能不同属正常）
+
+sources:
+  myredis:
+    kind: redis
+    address:
+      - 127.0.0.1:6379
+    username: ${REDIS_USER}
+    password: ${REDIS_PASS}
+    database: 0
+    clusterEnabled: false
+    useGCPIAM: false
+
+  myes:
+    kind: http
+    baseUrl: https://es.example.com
+    timeout: 30s
+    headers:
+      Accept: application/json
+      Content-Type: application/json
+
+tools:
+  # Redis 内置工具（导入后会自动勾选对应开关）
+  redis_ping_myredis:
+    kind: redis
+    source: myredis
+    description: Redis PING 健康检查
+    commands:
+      - ["PING"]
+
+  redis_get_myredis:
+    kind: redis
+    source: myredis
+    description: Redis GET key
+    commands:
+      - ["GET", "$key"]
+    parameters:
+      - { name: key, type: string, description: 键名 }
+
+  redis_set_myredis:
+    kind: redis
+    source: myredis
+    description: Redis SET key value
+    commands:
+      - ["SET", "$key", "$value"]
+    parameters:
+      - { name: key, type: string, description: 键名 }
+      - { name: value, type: string, description: 值 }
+
+  # Elasticsearch(HTTP) 自定义工具：集群健康
+  es_cluster_health:
+    kind: http
+    source: myes
+    description: 查看 Elasticsearch 集群健康状态
+    method: GET
+    path: /_cluster/health
+    headerParams:
+      - { name: Authorization, type: string, description: "Bearer 或 Basic token" }
+
+  # Elasticsearch(HTTP) 自定义工具：索引查询
+  es_search_index:
+    kind: http
+    source: myes
+    description: 在指定索引执行查询（query_string）
+    method: POST
+    path: /{{index}}/_search
+    requestBody: |
+      {
+        "query": {
+          "query_string": { "query": "{{query}}" }
+        },
+        "size": {{size}}
+      }
+    pathParams:
+      - { name: index, type: string, description: 索引名 }
+    bodyParams:
+      - { name: query, type: string, default: "*", description: 查询表达式，如 user:alice AND status:active }
+      - { name: size, type: string, default: "10", description: 返回条数 }
+    headerParams:
+      - { name: Authorization, type: string, description: "Bearer 或 Basic token" }
+
+toolsets:
+  all-database-tools:
+    - redis_ping_myredis
+    - redis_get_myredis
+    - redis_set_myredis
+    - es_cluster_health
+    - es_search_index

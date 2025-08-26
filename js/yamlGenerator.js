@@ -27,6 +27,56 @@ function buildYamlConfig() {
         uri: src.config.uri
       };
     }
+    if (src.type === 'redis') {
+      // address 支持字符串(多行)或数组
+      let addrs = [];
+      if (Array.isArray(src.config.address)) {
+        addrs = src.config.address.map(s => String(s).trim()).filter(s => s);
+      } else if (typeof src.config.address === 'string') {
+        addrs = src.config.address.split(/\r?\n/).map(s => s.trim()).filter(s => s);
+      }
+      const obj = {
+        kind: 'redis',
+        address: addrs
+      };
+      if (src.config.username && String(src.config.username).trim()) obj.username = String(src.config.username).trim();
+      if (src.config.password && String(src.config.password).trim()) obj.password = String(src.config.password).trim();
+      if (src.config.database !== '' && src.config.database !== undefined && src.config.database !== null) {
+        const dbn = Number(src.config.database);
+        if (!Number.isNaN(dbn)) obj.database = dbn;
+      }
+      if (src.config.clusterEnabled === true) obj.clusterEnabled = true;
+      if (src.config.useGCPIAM === true) obj.useGCPIAM = true;
+      sources[src.name] = obj;
+    }
+    if (src.type === 'http') {
+      // 解析 KV 文本为对象
+      const parseKVLines = (txt) => {
+        const out = {};
+        (String(txt || '')).split(/\r?\n/).map(l => l.trim()).filter(Boolean).forEach(line => {
+          let i = line.indexOf(':');
+          let sep = ':';
+          if (i === -1) { i = line.indexOf('='); sep = '='; }
+          if (i === -1) { out[line.trim()] = ''; return; }
+          const k = line.slice(0, i).trim();
+          const v = line.slice(i + 1).trim();
+          if (k) out[k] = v;
+        });
+        return out;
+      };
+      const obj = {
+        kind: 'http',
+        baseUrl: String(src.config.baseUrl || '').trim()
+      };
+      const timeout = String(src.config.timeout || '').trim();
+      if (timeout) obj.timeout = timeout;
+      const headersObj = parseKVLines(src.config.headers || '');
+      if (Object.keys(headersObj).length) obj.headers = headersObj;
+      const qpObj = parseKVLines(src.config.queryParams || '');
+      if (Object.keys(qpObj).length) obj.queryParams = qpObj;
+      if (src.config.disableSslVerification === true) obj.disableSslVerification = true;
+      sources[src.name] = obj;
+    }
   }
   // tools
   const tools = {};
@@ -179,26 +229,87 @@ function buildYamlConfig() {
         ]
       };
     }
+    if (tool.type === 'redis' && tool.name.startsWith('redis_ping_')) {
+      tools[tool.name] = {
+        kind: 'redis',
+        source: tool.source,
+        description: 'Redis PING 健康检查',
+        commands: [
+          ["PING"]
+        ]
+      };
+    }
+    if (tool.type === 'redis' && tool.name.startsWith('redis_get_')) {
+      tools[tool.name] = {
+        kind: 'redis',
+        source: tool.source,
+        description: 'Redis GET key',
+        commands: [
+          ["GET", "$key"]
+        ],
+        parameters: [
+          { name: "key", type: "string", description: "键名" }
+        ]
+      };
+    }
+    if (tool.type === 'redis' && tool.name.startsWith('redis_set_')) {
+      tools[tool.name] = {
+        kind: 'redis',
+        source: tool.source,
+        description: 'Redis SET key value',
+        commands: [
+          ["SET", "$key", "$value"]
+        ],
+        parameters: [
+          { name: "key", type: "string", description: "键名" },
+          { name: "value", type: "string", description: "值" }
+        ]
+      };
+    }
   }
   for (const tool of state.customTools) {
-    if (!tool.name || !tool.statement || !tool.source) continue;
-    // 参数校验：名称必填，类型固定为 string
-    if (Array.isArray(tool.parameters)) {
-      for (const p of tool.parameters) {
-        if (!p.name || !String(p.name).trim()) {
+    const kind = String(tool.kind || '').trim();
+    if (!tool.name || !tool.source) continue;
+
+    // 仅在需要 statement 的种类（mysql-sql/sqlite-sql 等）做 statement 必填
+    const needsStatement = !(kind.startsWith('mongodb-') || kind === 'redis' || kind === 'http');
+    if (needsStatement && !tool.statement) continue;
+
+    // 通用参数校验（名称非空）
+    const checkParams = (arr) => {
+      if (!Array.isArray(arr)) return;
+      for (const p of arr) {
+        if (!p || !String(p.name || '').trim()) {
           throw new Error('自定义工具 ' + tool.name + ' 存在未命名的参数');
         }
       }
-    }
-    // MongoDB official kinds use structured payload fields instead of generic statement/parameters
-    if (String(tool.kind || '').startsWith('mongodb-')) {
+    };
+
+    // Mongo 官方种类：沿用结构化构造器
+    if (kind.startsWith('mongodb-')) {
       tools[tool.name] = buildMongoToolConfig(tool);
-    } else {
+      continue;
+    }
+
+    // Redis 自定义工具：commandsText -> commands [][]string
+    if (kind === 'redis') {
+      checkParams(tool.parameters);
+      const commandsText = String(tool.commandsText || '').trim();
+      const lines = commandsText ? commandsText.split(/\r?\n/) : [];
+      const commands = [];
+      for (const line of lines) {
+        const l = line.trim();
+        if (!l) continue;
+        const parts = l.split(/\s+/);
+        if (parts.length) commands.push(parts);
+      }
+      if (!commands.length) continue;
+
       tools[tool.name] = {
-        kind: tool.kind,
+        kind: 'redis',
         source: tool.source,
         description: tool.description || '',
-        statement: tool.statement,
+        commands,
         parameters: (tool.parameters || []).map(p => ({
           name: p.name,
           type: 'string',
@@ -206,7 +317,81 @@ function buildYamlConfig() {
           default: p.default || ''
         }))
       };
+      continue;
     }
+
+    // HTTP 自定义工具：method/path/headersText/requestBody + 四组参数
+    if (kind === 'http') {
+      const parseKVLines = (txt) => {
+        const out = {};
+        (String(txt || '')).split(/\r?\n/).map(l => l.trim()).filter(Boolean).forEach(line => {
+          let i = line.indexOf(':');
+          if (i === -1) i = line.indexOf('=');
+          if (i === -1) { out[line.trim()] = ''; return; }
+          const k = line.slice(0, i).trim();
+          const v = line.slice(i + 1).trim();
+          if (k) out[k] = v;
+        });
+        return out;
+      };
+
+      checkParams(tool.pathParams);
+      checkParams(tool.queryParams);
+      checkParams(tool.bodyParams);
+      checkParams(tool.headerParams);
+
+      const obj = {
+        kind: 'http',
+        source: tool.source,
+        description: tool.description || '',
+        method: String(tool.method || 'GET'),
+        path: String(tool.path || '')
+      };
+
+      const headersObj = parseKVLines(tool.headersText || '');
+      if (Object.keys(headersObj).length) obj.headers = headersObj;
+
+      const reqBody = String(tool.requestBody || '').trim();
+      if (reqBody) obj.requestBody = reqBody;
+
+      const mapParamArr = (arr) => (Array.isArray(arr) ? arr.map(p => ({
+        name: p.name,
+        type: 'string',
+        description: p.description || '',
+        default: p.default || ''
+      })) : undefined);
+
+      const pathParams = mapParamArr(tool.pathParams);
+      const queryParams = mapParamArr(tool.queryParams);
+      const bodyParams = mapParamArr(tool.bodyParams);
+      const headerParams = mapParamArr(tool.headerParams);
+
+      if (pathParams && pathParams.length) obj.pathParams = pathParams;
+      if (queryParams && queryParams.length) obj.queryParams = queryParams;
+      if (bodyParams && bodyParams.length) obj.bodyParams = bodyParams;
+      if (headerParams && headerParams.length) obj.headerParams = headerParams;
+
+      // 必填
+      if (!obj.path) continue;
+
+      tools[tool.name] = obj;
+      continue;
+    }
+
+    // 其他类型：保留原逻辑（需要 statement）
+    checkParams(tool.parameters);
+    tools[tool.name] = {
+      kind: tool.kind,
+      source: tool.source,
+      description: tool.description || '',
+      statement: tool.statement,
+      parameters: (tool.parameters || []).map(p => ({
+        name: p.name,
+        type: 'string',
+        description: p.description || '',
+        default: p.default || ''
+      }))
+    };
   }
   // toolsets
   const toolsets = {

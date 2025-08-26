@@ -29,6 +29,32 @@ function importYamlToState(obj) {
         }
         config = { uri };
       }
+    } else if (type === 'redis') {
+      // 规范化 Redis 源配置到生成器使用的 config 结构
+      const address = Array.isArray(src.address)
+        ? src.address
+        : (typeof src.address === 'string' ? src.address : '');
+      config = {
+        address,
+        username: typeof src.username === 'string' ? src.username : '',
+        password: typeof src.password === 'string' ? src.password : '',
+        database: (typeof src.database === 'number' || typeof src.database === 'string') ? src.database : '',
+        clusterEnabled: !!src.clusterEnabled,
+        useGCPIAM: !!src.useGCPIAM
+      };
+    } else if (type === 'http') {
+      // 将对象 headers/queryParams 转为 KV 文本，timeout 默认 30s
+      const objToKVText = (o) => {
+        if (!o || typeof o !== 'object') return '';
+        return Object.entries(o).map(([k, v]) => `${k}: ${v}`).join('\n');
+      };
+      config = {
+        baseUrl: typeof src.baseUrl === 'string' ? src.baseUrl : '',
+        timeout: typeof src.timeout === 'string' && src.timeout.trim() ? src.timeout : '30s',
+        headers: objToKVText(src.headers),
+        queryParams: objToKVText(src.queryParams),
+        disableSslVerification: !!src.disableSslVerification
+      };
     }
     window.yamlConfigState.sources.push({ name, type, config });
     // 自动添加内置工具（仅识别常见 kind，其他类型可扩展）
@@ -38,6 +64,11 @@ function importYamlToState(obj) {
     }
     if (type === 'sqlite') {
       window.yamlConfigState.builtinTools.push({ name: 'sqlite_execute_' + name, type, source: name, enabled: false });
+    }
+    if (type === 'redis') {
+      window.yamlConfigState.builtinTools.push({ name: 'redis_ping_' + name, type, source: name, enabled: false });
+      window.yamlConfigState.builtinTools.push({ name: 'redis_get_' + name, type, source: name, enabled: false });
+      window.yamlConfigState.builtinTools.push({ name: 'redis_set_' + name, type, source: name, enabled: false });
     }
     if (type === 'postgres') {
       window.yamlConfigState.builtinTools.push({ name: 'pg_execute_' + name, type, source: name, enabled: false });
@@ -55,7 +86,7 @@ function importYamlToState(obj) {
   window.yamlConfigState.customTools = [];
   for (const [name, tool] of Object.entries(obj.tools || {})) {
     // 跳过已知内置工具
-    if (/^(execute_sql_|list_tables_|sqlite_execute_|mongo_execute_|pg_execute_|pg_list_tables_)/.test(name)) continue;
+    if (/^(execute_sql_|list_tables_|sqlite_execute_|mongo_execute_|pg_execute_|pg_list_tables_|redis_ping_|redis_get_|redis_set_)/.test(name)) continue;
 
     const kind = tool.kind || '';
     const base = {
@@ -115,6 +146,38 @@ function importYamlToState(obj) {
       }
 
       window.yamlConfigState.customTools.push(t);
+      continue;
+    }
+
+    // Redis 自定义工具：commands -> commandsText，多行拼接
+    if (kind === 'redis') {
+      const commands = Array.isArray(tool.commands) ? tool.commands : [];
+      const commandsText = commands.map(arr => Array.isArray(arr) ? arr.join(' ') : '').filter(Boolean).join('\n');
+      window.yamlConfigState.customTools.push({
+        ...base,
+        commandsText,
+        parameters: mapParams(tool.parameters)
+      });
+      continue;
+    }
+
+    // HTTP 自定义工具：method/path/headersText/requestBody + 四组参数
+    if (kind === 'http') {
+      const objToKVText = (o) => {
+        if (!o || typeof o !== 'object') return '';
+        return Object.entries(o).map(([k, v]) => `${k}: ${v}`).join('\n');
+      };
+      window.yamlConfigState.customTools.push({
+        ...base,
+        method: tool.method || 'GET',
+        path: tool.path || '',
+        headersText: objToKVText(tool.headers),
+        requestBody: tool.requestBody || '',
+        pathParams: mapParams(tool.pathParams),
+        queryParams: mapParams(tool.queryParams),
+        bodyParams: mapParams(tool.bodyParams),
+        headerParams: mapParams(tool.headerParams),
+      });
       continue;
     }
 
